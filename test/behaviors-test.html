@@ -74,6 +74,8 @@
 	});
 	
 	teardown(function(done) {
+		proto1.behaviors = undefined;
+		
 		flush(done);
 	});
 	
@@ -89,6 +91,16 @@
 		
 		assert.equal(extended.ceva, 22, "behavior property copied");
 		assert.deepEqual(extended.publish, publishResult1, 'publish property extended');
+	});
+	
+	test('dependent behaviors', function () {
+		proto1.behaviors = [ behavior3 ];
+		
+		var extended = Polymer.implementBehaviors(proto1, [ behavior1, behavior2 ], behavior3);
+		
+		assert.equal(extended.behaviors[0], behavior3, 'behavior inheritance order #1' );
+		assert.equal(extended.behaviors[1], behavior1, 'behavior inheritance order #2' );
+		assert.equal(extended.behaviors[2], behavior2, 'behavior inheritance order #3' );
 	});
 	
 	test('methods & method chaining', function () {
