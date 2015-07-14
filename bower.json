@@ -1,0 +1,12 @@
+{
+    "name": "cbn-polymer-extensions",
+    "version": "0.1.0",
+    "private": true,
+    "main": "cbn-polymer-extensions.html",
+    "dependencies": {
+        "polymer": "Polymer/polymer#^0.5"
+    },
+    "devDependencies": {
+        "web-component-tester": "Polymer/web-component-tester"
+    }
+}
