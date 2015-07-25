@@ -1,12 +1,16 @@
 {
-    "name": "cbn-polymer-extensions",
-    "version": "0.1.0",
-    "private": true,
-    "main": "cbn-polymer-extensions.html",
-    "dependencies": {
-        "polymer": "Polymer/polymer#^0.5"
-    },
-    "devDependencies": {
-        "web-component-tester": "Polymer/web-component-tester"
-    }
+  "name": "cbn-polymer-extensions",
+  "version": "1.0.0",
+  "private": true,
+  "main": "cbn-polymer-extensions.html",
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0",
+    "polymer-reflection": "niflostancu/polymer-reflection#master"
+  },
+  "devDependencies": {
+    "web-component-tester": "Polymer/web-component-tester",
+    "iron-form": "PolymerElements/iron-form#~1.0.7",
+    "iron-input": "PolymerElements/iron-input#~1.0.4",
+    "paper-input": "PolymerElements/paper-input#~1.0.6"
+  }
 }
