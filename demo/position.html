@@ -11,17 +11,26 @@
 </head>
 <body>
 
-<div  style="width: 500px; margin: 50px auto;">
+<div  style="width: 800px; margin: 50px auto;">
 	<h1>Position behavior demo</h1>
 	
 	<template id="tpl" is="dom-bind">
 			
 		<p>
-			<test-position-client text="dynamic" position="top left"></test-position-client>
+			<test-position-client text="left top, no collision" position="left top, left bottom" position-collision-mode="none none"></test-position-client>
+		</p>
+		<p>
+			<test-position-client text="right top, flip" position="right top" position-collision-mode="flip flip"></test-position-client>
 		</p>
 		
 		<p>
-			<test-position-client text="bottom right" position="bottom right, bottom left"></test-position-client>
+			<test-position-client text="center, bottom left" position=", bottom left" position-collision-mode="flipfit flipfit"></test-position-client>
+		</p>
+		<p>
+			<test-position-client text="bottom left" position="bottom left" position-collision-mode="flipfit flipfit"></test-position-client>
+		</p>
+		<p>
+			<test-position-client text="bottom" position="center bottom"></test-position-client>
 		</p>
 		
 	</template>

@@ -215,40 +215,42 @@
 				}
 				
 				var prevPos = null;
-				var res = parsed.map(function(posStr, boxIdx) {
+				var prevSwap = false;
+				var res = parsed.map(function(posStr) {
 					var parsedPos = posStr.trim().split(' ');
 					parsedPos = parsedPos.map(function(pstr) {
 						var match = /^([a-z]+)(?:([+-])([0-9]+))?$/.exec(pstr.trim());
-						if (!match) return { norm: undefined };
+						if (!match) return { norm: undefined, pad: 0 };
 						return {
 							norm: match[1],
 							pad: (match[3] ? match[3] * ( match[2] == '+' ? 1 : -1) : 0)
 						};
 					});
-					
+					console.log('parsePos', posStr, JSON.stringify(parsedPos));
 					if (parsedPos.length == 1) parsedPos.push({ pad: 0 });
 					var defPos = defaults;
 					var swap = false;
 					
-					if ((parsedPos[0] && directionMap[parsedPos[0]] === 1) || 
-							(parsedPos[1] && directionMap[parsedPos[1]] === 0)) {
+					if ((parsedPos[0] && directionMap[parsedPos[0].norm] === 1) || 
+							(parsedPos[1] && directionMap[parsedPos[1].norm] === 0)) {
 						// need to swap the two directions so vertical is the first, then horizontal
 						swap = true;
 						if (parsedPos.length == 2) {
-							parsedPos = [ parsedPos[1], parsedPos[1] ];
+							parsedPos = [ parsedPos[1], parsedPos[0] ];
 						}
 					}
 					
 					if (!posStr && prevPos) {
 						parsedPos = [];
 						// infer new defaults from the previous box's position, with one flipped direction
-						if (swap) {
-							defPos = [ -prevPos[1].norm, prevPos[0].norm ];
+						if (prevSwap) {
+							defPos = [ -prevPos[0].norm, prevPos[1].norm ];
 						} else {
 							defPos = [ prevPos[0].norm, -prevPos[1].norm ];
 						}
 					}
 					
+					console.log('defpos', prevPos, defPos, prevSwap);
 					// for each direction
 					prevPos = [0, 1].map(function(dir) {
 						var pos = ( parsedPos ? parsedPos[dir] : undefined );
@@ -260,6 +262,8 @@
 							pad: pos.pad
 						};
 					});
+					prevSwap = swap;
+					
 					return prevPos;
 				});
 				if (oneBox && res.length > 1) {
@@ -400,6 +404,7 @@
 		function positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc) {
 			var sourcePoint = getBoundingPoint(refBoundingBox, positionsDesc[0]);
 			var targetPos = computeTargetPosition(targetBoundingBox, positionsDesc[1], sourcePoint);
+			console.log(sourcePoint, targetPos, positionsDesc);
 			
 			return moveBoundingBox(targetBoundingBox, targetPos);
 		}
@@ -438,6 +443,7 @@
 			
 			// the resulting bounding box
 			var result = positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc);
+			console.log('intrm', JSON.stringify(result));
 			
 			[0,1].forEach(function(dir) {
 				var currentPosDesc = JSON.parse(JSON.stringify(positionsDesc));
@@ -453,9 +459,11 @@
 							result = positionBoxFit(result, viewport, dir);
 							break;
 						case 'flipfit':
-							currentPosDesc = flipNormPosition(currentPosDesc, dir);
+							currentPosDesc[0] = flipNormPosition(currentPosDesc[0], dir);
+							currentPosDesc[1] = flipNormPosition(currentPosDesc[1], dir);
 							var newCollisionMode = [ collisionMode[0], collisionMode[1] ];
 							newCollisionMode[dir] = 'fit';
+							console.log('flipfitting');
 							result = positionBoxWithCollision(result, refBoundingBox, 
 								currentPosDesc, viewport, newCollisionMode);
 							break;
