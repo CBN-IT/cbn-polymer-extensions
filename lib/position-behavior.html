@@ -1,0 +1,468 @@
+<script>
+	if (!window.Cbn) window.Cbn = {};
+	
+	(function(scope) {
+		
+		/**
+		 * Utility behavior to position an absolute/fixed element relative to another.
+		 * 
+		 * Inspired from jQuery UI's position plugin: http://api.jqueryui.com/position/.
+		 * 
+		 * @type {Element}
+		 */
+		scope.PositionBehavior = {
+			
+			properties: {
+				
+				/**
+				 * A string that describes the positions to use for aligning the target container to the reference box.
+				 * 
+				 * It is actually made of two points (using comma-separated definitions):
+				 * 
+				 * - the first one is the reference point within the source element;
+				 * - the second one is the point inside the target element to be matched with the former.
+				 * 
+				 * Each point is composed of a horizontal and a vertical value using the following keywords 
+				 * (space-separated, in any order):
+				 * [ top | bottom ] (vertical), [ left | right ] (horizontal), center (for both).
+				 * One of those values are optional (defaults to `center` for the reference point and to whatever the 
+				 * reference value defines for the target point).
+				 *
+				 * For example, the `bottom right, top left` assumes the following alignment:
+				 * ```
+				 *         O*************O
+				 *         *             *
+				 *         *  [source]   *
+				 *         *             *
+				 *         O*************X************O (x is the common point of both boxes)
+				 *                       *  [target]  *
+				 *                       O************O
+				 * ```
+				 * 
+				 * You can also add / subtract a finite amount of pixels from any of the directional values (e.g. 
+				 * 'left+10 top-5').
+				 * 
+				 * Note: if the second point is not specified, it is inferred from the reference point using the 
+				 * following rules:
+				 * 1. If one of the values is 'center', the remaining value is flipped 
+				 *    (e.g.: `center left` => `center right`).
+				 * 2. Else, it is a corner point and only the second value is flipped (e.g. `top left` => `top right`; 
+				 *    `left bottom` => 'left top' - note: the order of the coordinates MATTERS here).
+				 *    
+				 * This enables positioning an element just by specifying the alignment direction.
+				 * 
+				 * More examples: 
+				 * 
+				 * - `bottom`: to the bottom of the element, center-aligned on the vertical;
+				 * - `center bottom, center top`: equivalent of the previous example;
+				 * - `top right`: positions the element to the right of the source box, top-aligned;
+				 * - `top right, top left`: equivalent of the previous example;
+				 * - `right center, top left`: the element's top-left corner is on the right-center of the source box;
+				 * - `center, center`: centers the element above the source element;
+				 * 
+				 * See the demo for more examples.
+				 */
+				position: {
+					type: String,
+					value: ''
+				},
+				
+				/**
+				 * Specifies the collision logic when the positioned element overflows the viewport.
+				 * 
+				 * Like with 'position', you can specify separate values for horizontal and vertical directions. 
+				 * 
+				 * Available values:
+				 * 
+				 * - 'flip': flips to the position's opposite (e.g. left - right) if it doesn't fit;
+				 * - 'fit': forces the element to go over the reference element if it doesn't fit;
+				 * - 'flipfit': try to flip, then fit if no other solution;
+				 * - '': no collision logic, just position the element even if it overflows.
+				 * 
+				 * Defaults to 'flip flip'.
+				 */
+				positionCollisionMode: {
+					type: String,
+					value: ''
+				},
+				
+				/**
+				 * The default reference element.
+				 */
+				positionReference: {
+					type: Object,
+					value: function() { return this; }
+				}
+			},
+			
+			/**
+			 * Positions the specified element relative to the reference element. 
+			 * Updates the `left` and `top` CSS properties.
+			 * 
+			 * @param {Element} target The element to update.
+			 * @param {*} [ref] The reference element to position against; defaults to `this`.
+			 * @param {Object}  [options] The options object.
+			 */
+			updateElementPosition: function(target, ref, options) {
+				var pos = this.computeElementPosition(target, ref, options);
+				
+				target.style.top = pos.top + "px";
+				target.style.left = pos.left + "px";
+			},
+			
+			/**
+			 * Computes the element's position , returning it without updating any of its styles.
+			 * 
+			 * The method accepts an optional options object, which can have the following properties:
+			 * - `position`: specifies the preferred positioning of the element;
+			 * - `collisionMode`: the overflow behavior of the positioned element;
+			 * - `viewport`: the viewport to use for collision detection; defaults to `window`;
+			 * - `viewportMargin`: an array with viewport margins to enforce when fitting the element;
+			 * 
+			 * If not specified, the behavior instance's properties will be used.
+			 * 
+			 * @param {Element} target The element to update.
+			 * @param {*} [ref] The reference element to position against; defaults to `this`.
+			 * @param {Object}  [options] Positioning options.
+			 * @return {[ Number, Number ]} The new position of the element (2D point).
+			 */
+			computeElementPosition: function(target, ref, options) {
+				// parse / validate the arguments
+				
+				if (!options) options = {};
+				if (!options.position) options.position = this.position;
+				if (!options.collisionMode) options.collisionMode = this.positionCollisionMode;
+				if (!options.viewport) options.viewport = window;
+				if (!options.viewportMargin) options.viewportMargin = [0, 0];
+				if (!ref) ref = this.positionReference || this;
+				
+				var parsedPositions = this._parsePositionValue(options.position);
+				var collisionMode = this._normalizeDirAttributes(options.collisionMode, [ 'flip', 'flip' ]);
+				var margins = options.viewportMargin;
+				
+				var targetBounds = target.getBoundingClientRect();
+				if (!targetBounds.width || !targetBounds.height) {
+					console.warn('`PositionBehavior#computeElementPosition`: ',
+						'invalid target element dimensions! (is the element visible?)');
+				}
+				var refBounds = ref.getBoundingClientRect();
+				if (!refBounds.width || !refBounds.height) {
+					console.warn('`PositionBehavior#computeElementPosition`: ',
+						'invalid reference element dimensions! (is it visible?)');
+				}
+				
+				var viewport = { top: 0, left: 0, height: window.innerHeight, width: window.innerWidth };
+				if (options.viewport !== window) {
+					viewport = options.viewport.getBoundingClientRect();
+					viewport = {
+						top: viewport.top, left: viewport.left, 
+						height: viewport.height, width: viewport.width
+					};
+				}
+				if (margins) { // update the collision viewport (subtract the margins)
+					if (margins.left) viewport.left += margins.left;
+					if (margins.right) viewport.width -= margins.left + margins.right;
+					if (margins.top) viewport.top += margins.top;
+					if (margins.bottom) viewport.height -= margins.top + margins.bottom;
+				}
+				
+				// implementation
+				return positionBoxWithCollision(targetBounds, refBounds, parsedPositions, viewport, collisionMode);
+			},
+			
+			/**
+			 * Normalizes a position string as described on the `position` property.
+			 * 
+			 * Returns a list of two-dimensional arrays (vertical then horizontal, with either -1 for top/left, 0 for 
+			 * center and 1 for bottom/right) for each position string.
+			 * 
+			 * If `oneBox` is specified, will only return the first normalized position item (for the first box).
+			 * 
+			 * Example: 'top left+2, bottom left-2' normalizes to 
+			 * `[ [ {norm:-1,pad:0}, {norm:-1,pad:2} ], [ {norm:1,pad:0}, {norm:-1,pad:-2} ] ]`.
+			 * 
+			 * @param {String|Array} str The string to normalize. Also accepts an already normalized array.
+			 * @param {Array}        [defaults] A two-dimensional array with the defaults to use.
+			 * @param {Boolean}      [oneBox] Just parse the position of one box.
+			 * @return {[[NormalizedPosition, NormalizedPosition]]} The normalized position object.
+			 */
+			_parsePositionValue: function(str, defaults, oneBox) {
+				if (Array.isArray(str)) {
+					// already normalized
+					return str; 
+				}
+				
+				if (!defaults) defaults = [0, 0];
+				
+				var normMap = { left: -1, top: -1, right: 1, bottom: 1, center: 0 };
+				var directionMap = { top: 0, bottom: 0, left: 1, right: 1 };
+				var parsed = ( str ? str.split(',') : []);
+				if (!parsed || !parsed.length) {
+					if (oneBox) return defaults;
+					return [ defaults, defaults ];
+				}
+				if (parsed.length == 1) {
+					parsed.push(''); // insert an empty position string for the target box
+				}
+				
+				var prevPos = null;
+				var res = parsed.map(function(posStr, boxIdx) {
+					var parsedPos = posStr.trim().split(' ');
+					parsedPos = parsedPos.map(function(pstr) {
+						var match = /^([a-z]+)(?:([+-])([0-9]+))?$/.exec(pstr.trim());
+						if (!match) return { norm: undefined };
+						return {
+							norm: match[1],
+							pad: (match[3] ? match[3] * ( match[2] == '+' ? 1 : -1) : 0)
+						};
+					});
+					
+					if (parsedPos.length == 1) parsedPos.push({ pad: 0 });
+					var defPos = defaults;
+					var swap = false;
+					
+					if ((parsedPos[0] && directionMap[parsedPos[0]] === 1) || 
+							(parsedPos[1] && directionMap[parsedPos[1]] === 0)) {
+						// need to swap the two directions so vertical is the first, then horizontal
+						swap = true;
+						if (parsedPos.length == 2) {
+							parsedPos = [ parsedPos[1], parsedPos[1] ];
+						}
+					}
+					
+					if (!posStr && prevPos) {
+						parsedPos = [];
+						// infer new defaults from the previous box's position, with one flipped direction
+						if (swap) {
+							defPos = [ -prevPos[1].norm, prevPos[0].norm ];
+						} else {
+							defPos = [ prevPos[0].norm, -prevPos[1].norm ];
+						}
+					}
+					
+					// for each direction
+					prevPos = [0, 1].map(function(dir) {
+						var pos = ( parsedPos ? parsedPos[dir] : undefined );
+						if (!pos) {
+							return { norm: defPos[dir], pad: 0 };
+						}
+						return {
+							norm: ( normMap[pos.norm] !== undefined ? normMap[pos.norm] : defPos[dir] ),
+							pad: pos.pad
+						};
+					});
+					return prevPos;
+				});
+				if (oneBox && res.length > 1) {
+					return res[0];
+				}
+				return res;
+			},
+			
+			/**
+			 * Normalizes a configuration string which can contain space-separated values for vertical, then for 
+			 * horizontal directions.
+			 *
+			 * @param {String} str The string to normalize.
+			 * @param {Array}  defaults Array with the defaults to infer for each direction (if not specified).
+			 * @return {Array} The normalized values, one for vertical and one for horizontal.
+			 */
+			_normalizeDirAttributes: function(str, defaults) {
+				var parsed = ( str ? str.split(' ') : []);
+				return [0, 1].map(function(idx) {
+					return parsed[idx] || defaults[idx];
+				});
+			}
+			
+		};
+		
+		
+		// utility functions
+		
+		/**
+		 * Returns a normalized version of the bounding box: an array for each direction (vertical, 
+		 * horizontal) with the position (top / left) and the dimension (height / width) parts.
+		 * 
+		 * @param {Object} boundingBox The source bounding box to normalize.
+		 * @return {[[Number]]} The normalized 2-dimensional array.
+		 */
+		function normalizeBoundingBox(boundingBox) {
+			return [
+				[ boundingBox.top, boundingBox.height ],
+				[ boundingBox.left, boundingBox.width ]
+			];
+		}
+		
+		/**
+		 * Clones the bounding box with new coordinates.
+		 * 
+		 * @param {Object} boundingBox The source bounding box to normalize.
+		 * @param {[Number, Number]} newPosition The new coordinates.
+		 * @return {Object} The resulting bounding box (with new coordinates).
+		 */
+		function moveBoundingBox(boundingBox, newPosition) {
+			return {
+				top: newPosition[0], left: newPosition[1],
+				height: boundingBox.height, width: boundingBox.width
+			};
+		}
+		
+		/**
+		 * Returns the coordinates of a bounding box point given by the specified position object.
+		 *
+		 * @param {Object} boundingBox The source bounding box.
+		 * @param {[NormalizedPosition, NormalizedPosition]} normPosition The normalized position descriptor of the point to calculate.
+		 * @return {[Number, Number]} The calculated position (array of [top, left] coordinates).
+		 */
+		function getBoundingPoint(boundingBox, normPosition) {
+			var normBounds = normalizeBoundingBox(boundingBox);
+			return normPosition.map(function(pos, dir) {
+				switch (pos.norm) {
+					case -1: // top / left corner
+						return normBounds[dir][0] + pos.pad;
+					case 0: // center (mean between top-bottom / left-right)
+						return Math.round(normBounds[dir][0] + normBounds[dir][1]/2) + pos.pad;
+					case 1: // bottom / right (= top/left + add height/width)
+						return normBounds[dir][0] + normBounds[dir][1] + pos.pad;
+				}
+				return 0; // default, shouldn't happen
+			});
+		}
+		
+		/**
+		 * Computes the position of the target box by matching its alignment descriptor with the source coordinates.
+		 *
+		 * @param {Object} boundingBox The target's bounding box.
+		 * @param {[NormalizedPosition, NormalizedPosition]}  normPosition The normalized position descriptor of the target.
+		 * @param {[Number, Number]} sourceCoords The computed coordinates to use as source point.
+		 * @return {[Number, Number]} The calculated position (2D point: array of [top, left] coordinates).
+		 */
+		function computeTargetPosition(boundingBox, normPosition, sourceCoords) {
+			var normBounds = normalizeBoundingBox(boundingBox);
+			return normPosition.map(function(pos, dir) {
+				switch (pos.norm) {
+					case -1: // align to top / left
+						return sourceCoords[dir] - pos.pad;
+					case 0: // add half the height / width
+						return sourceCoords[dir] - Math.round(normBounds[dir][1]/2) - pos.pad;
+					case 1: // we need to add the box's height / width
+						return sourceCoords[dir] - normBounds[dir][1] - pos.pad;
+				}
+				return 0; // default, shouldn't happen
+			});
+		}
+		
+		/**
+		 * Checks whether the specified bounding box is inside the viewport.
+		 *
+		 * @param {Number} dir The direction to check on (0=vertical, 1=horizontal).
+		 * @param {Object} boundingBox The bounding box to verify.
+		 * @param {Object} viewport The viewport's box.
+		 * @return {Boolean} Whether the bounding box is inside the viewport.
+		 */
+		function checkBoundsOnDirection(dir, boundingBox, viewport) {
+			var normBounds = normalizeBoundingBox(boundingBox);
+			var normViewport = normalizeBoundingBox(viewport);
+			
+			return (normBounds[dir][0] < normViewport[dir][0]) &&
+				(normBounds[dir][0] + normBounds[dir][1]) <= normViewport[dir];
+		}
+		
+		/**
+		 * Flips the specified position descriptor.
+		 *
+		 * @param {[NormalizedPosition, NormalizedPosition]} normPosition The normalized position object to flip.
+		 * @param {Number} dir The direction to flip on (0=vertical, 1=horizontal).
+		 */
+		function flipNormPosition(normPosition, dir) {
+			var clone = JSON.parse(JSON.stringify(normPosition));
+			clone[dir].norm *= -1;
+			return clone;
+		}
+		
+		/**
+		 * Computes the position of the target relative to the specified reference box using the specified positions 
+		 * descriptor.
+		 * 
+		 * @param {Object} targetBoundingBox The target box.
+		 * @param {Object} refBoundingBox The reference box.
+		 * @param {[[NormalizedPosition, NormalizedPosition]]} positionsDesc The normalized positions descriptor object.
+		 */
+		function positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc) {
+			var sourcePoint = getBoundingPoint(refBoundingBox, positionsDesc[0]);
+			var targetPos = computeTargetPosition(targetBoundingBox, positionsDesc[1], sourcePoint);
+			console.log('source + target', sourcePoint, targetPos);
+			return moveBoundingBox(targetBoundingBox, targetPos);
+		}
+		
+		/**
+		 * Fits the box inside the specified viewport, returning a new bounding box object with the new coordinates.
+		 * 
+		 * @param {Object} boundingBox The bounding box to verify.
+		 * @param {Object} viewport The viewport's box.
+		 * @param {Number} dir The direction to check on (0=vertical, 1=horizontal).
+		 * @return {[Number, Number]} The calculated position (2D point: array of [top, left] coordinates).
+		 */
+		function positionBoxFit(boundingBox, viewport, dir) {
+			var normBounds = normalizeBoundingBox(boundingBox);
+			var normViewport = normalizeBoundingBox(viewport);
+			
+			var point = [ boundingBox.top, boundingBox.left ];
+			point[dir] = normViewport[dir][0] + normViewport[dir][1] -
+				normBounds[dir][1];
+			
+			return moveBoundingBox(boundingBox, point);
+		}
+		
+		/**
+		 * Positions the target box relative to the reference box using the specified collision action in case it 
+		 * doesn't fit.
+		 * 
+		 * 
+		 */
+		function positionBoxWithCollision(targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode) {
+			console.log(targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode);
+			
+			// the resulting bounding box
+			var result = positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc);
+			console.log('intermediary result', result);
+			
+			[0,1].forEach(function(dir) {
+				var currentPosDesc = positionsDesc;
+				if (!checkBoundsOnDirection(dir, result, viewport)) {
+					console.log('we have collision');
+					// we have a viewport collision, take action
+					switch (collisionMode) {
+						case 'flip':
+							currentPosDesc = flipNormPosition(currentPosDesc, dir);
+							result = positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc);
+							break;
+						case 'fit':
+							result = positionBoxFit(dir, result, viewport);
+							break;
+						case 'flipfit':
+							currentPosDesc = flipNormPosition(currentPosDesc, dir);
+							var newCollisionMode = [ collisionMode[0], collisionMode[1] ];
+							newCollisionMode[dir] = 'fit';
+							result = positionBoxWithCollision(targetBoundingBox, refBoundingBox, 
+								currentPosDesc, viewport, newCollisionMode);
+							break;
+					}
+				}
+			});
+			
+			console.log('position result', result);
+			return result;
+		}
+		
+		
+		/**
+		 * Describes the normalized position object type for one direction.
+		 * 
+		 * @typedef {Object} NormalizedPosition
+		 * @property {Number} norm The normalized alignment (-1 or top/left, 1 for bottom/right, 0 for center);
+		 * @property {Number} pad  Additional padding to add to the point.
+		 */
+		
+	})(window.Cbn);
+</script>
