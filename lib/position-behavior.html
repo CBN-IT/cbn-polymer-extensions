@@ -92,7 +92,16 @@
 				positionReference: {
 					type: Object,
 					value: function() { return this; }
+				},
+				
+				/**
+				 * The default viewport element.
+				 */
+				positionViewport: {
+					type: Object,
+					value: function() { return window; }
 				}
+				
 			},
 			
 			/**
@@ -132,7 +141,7 @@
 				if (!options) options = {};
 				if (!options.position) options.position = this.position;
 				if (!options.collisionMode) options.collisionMode = this.positionCollisionMode;
-				if (!options.viewport) options.viewport = window;
+				if (!options.viewport) options.viewport = this.positionViewport;
 				if (!options.viewportMargin) options.viewportMargin = [0, 0];
 				if (!ref) ref = this.positionReference || this;
 				
@@ -364,8 +373,8 @@
 			var normBounds = normalizeBoundingBox(boundingBox);
 			var normViewport = normalizeBoundingBox(viewport);
 			
-			return (normBounds[dir][0] < normViewport[dir][0]) &&
-				(normBounds[dir][0] + normBounds[dir][1]) <= normViewport[dir];
+			return (normBounds[dir][0] >= normViewport[dir][0]) &&
+				(normBounds[dir][0] + normBounds[dir][1]) <= (normViewport[dir][0] + normViewport[dir][1]);
 		}
 		
 		/**
@@ -391,7 +400,7 @@
 		function positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc) {
 			var sourcePoint = getBoundingPoint(refBoundingBox, positionsDesc[0]);
 			var targetPos = computeTargetPosition(targetBoundingBox, positionsDesc[1], sourcePoint);
-			console.log('source + target', sourcePoint, targetPos);
+			
 			return moveBoundingBox(targetBoundingBox, targetPos);
 		}
 		
@@ -417,34 +426,37 @@
 		/**
 		 * Positions the target box relative to the reference box using the specified collision action in case it 
 		 * doesn't fit.
-		 * 
-		 * 
+		 *
+		 * @param {Object} targetBoundingBox The target box.
+		 * @param {Object} refBoundingBox The reference box.
+		 * @param {[[NormalizedPosition, NormalizedPosition]]} positionsDesc The normalized positions descriptor object.
+		 * @param {Object} viewport The viewport's box.
+		 * @param {Array} collisionMode The viewport's box.
 		 */
 		function positionBoxWithCollision(targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode) {
-			console.log(targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode);
+			console.log('positionBoxWithCollision', targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode);
 			
 			// the resulting bounding box
 			var result = positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc);
-			console.log('intermediary result', result);
 			
 			[0,1].forEach(function(dir) {
-				var currentPosDesc = positionsDesc;
+				var currentPosDesc = JSON.parse(JSON.stringify(positionsDesc));
 				if (!checkBoundsOnDirection(dir, result, viewport)) {
-					console.log('we have collision');
 					// we have a viewport collision, take action
-					switch (collisionMode) {
+					switch (collisionMode[dir]) {
 						case 'flip':
-							currentPosDesc = flipNormPosition(currentPosDesc, dir);
-							result = positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc);
+							currentPosDesc[0] = flipNormPosition(currentPosDesc[0], dir);
+							currentPosDesc[1] = flipNormPosition(currentPosDesc[1], dir);
+							result = positionBoxRelative(result, refBoundingBox, currentPosDesc);
 							break;
 						case 'fit':
-							result = positionBoxFit(dir, result, viewport);
+							result = positionBoxFit(result, viewport, dir);
 							break;
 						case 'flipfit':
 							currentPosDesc = flipNormPosition(currentPosDesc, dir);
 							var newCollisionMode = [ collisionMode[0], collisionMode[1] ];
 							newCollisionMode[dir] = 'fit';
-							result = positionBoxWithCollision(targetBoundingBox, refBoundingBox, 
+							result = positionBoxWithCollision(result, refBoundingBox, 
 								currentPosDesc, viewport, newCollisionMode);
 							break;
 					}

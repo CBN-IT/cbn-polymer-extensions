@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>Position</title>
+	
+	<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+	
+	<link rel="import" href="mock/position-client.html">
+	
+</head>
+<body>
+
+<div  style="width: 500px; margin: 50px auto;">
+	<h1>Position behavior demo</h1>
+	
+	<template id="tpl" is="dom-bind">
+			
+		<p>
+			<test-position-client text="dynamic" position="top left"></test-position-client>
+		</p>
+		
+		<p>
+			<test-position-client text="bottom right" position="bottom right, bottom left"></test-position-client>
+		</p>
+		
+	</template>
+</div>
+	
+<script>
+	var tpl = document.querySelector('template[is=dom-bind]');
+	
+	tpl.addEventListener('dom-change', function(){
+		// ?? 
+	});
+	
+</script>
+
+</body>
+</html>
