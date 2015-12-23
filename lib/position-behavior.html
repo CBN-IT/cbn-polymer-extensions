@@ -145,8 +145,8 @@
 				if (!options.viewportMargin) options.viewportMargin = [0, 0];
 				if (!ref) ref = this.positionReference || this;
 				
-				var parsedPositions = this._parsePositionValue(options.position);
-				var collisionMode = this._normalizeDirAttributes(options.collisionMode, [ 'flip', 'flip' ]);
+				var parsedPositions = parsePositionString(options.position);
+				var collisionMode = parseDirAttribute(options.collisionMode, [ 'flip', 'flip' ]);
 				var margins = options.viewportMargin;
 				
 				var targetBounds = target.getBoundingClientRect();
@@ -177,120 +177,122 @@
 				
 				// implementation
 				return positionBoxWithCollision(targetBounds, refBounds, parsedPositions, viewport, collisionMode);
-			},
-			
-			/**
-			 * Normalizes a position string as described on the `position` property.
-			 * 
-			 * Returns a list of two-dimensional arrays (vertical then horizontal, with either -1 for top/left, 0 for 
-			 * center and 1 for bottom/right) for each position string.
-			 * 
-			 * If `oneBox` is specified, will only return the first normalized position item (for the first box).
-			 * 
-			 * Example: 'top left+2, bottom left-2' normalizes to 
-			 * `[ [ {norm:-1,pad:0}, {norm:-1,pad:2} ], [ {norm:1,pad:0}, {norm:-1,pad:-2} ] ]`.
-			 * 
-			 * @param {String|Array} str The string to normalize. Also accepts an already normalized array.
-			 * @param {Array}        [defaults] A two-dimensional array with the defaults to use.
-			 * @param {Boolean}      [oneBox] Just parse the position of one box.
-			 * @return {[[NormalizedPosition, NormalizedPosition]]} The normalized position object.
-			 */
-			_parsePositionValue: function(str, defaults, oneBox) {
-				if (Array.isArray(str)) {
-					// already normalized
-					return str; 
-				}
-				
-				if (!defaults) defaults = [0, 0];
-				
-				var normMap = { left: -1, top: -1, right: 1, bottom: 1, center: 0 };
-				var directionMap = { top: 0, bottom: 0, left: 1, right: 1 };
-				var parsed = ( str ? str.split(',') : []);
-				if (!parsed || !parsed.length) {
-					if (oneBox) return defaults;
-					return [ defaults, defaults ];
-				}
-				if (parsed.length == 1) {
-					parsed.push(''); // insert an empty position string for the target box
-				}
-				
-				var prevPos = null;
-				var prevSwap = false;
-				var res = parsed.map(function(posStr) {
-					var parsedPos = posStr.trim().split(' ');
-					parsedPos = parsedPos.map(function(pstr) {
-						var match = /^([a-z]+)(?:([+-])([0-9]+))?$/.exec(pstr.trim());
-						if (!match) return { norm: undefined, pad: 0 };
-						return {
-							norm: match[1],
-							pad: (match[3] ? match[3] * ( match[2] == '+' ? 1 : -1) : 0)
-						};
-					});
-					console.log('parsePos', posStr, JSON.stringify(parsedPos));
-					if (parsedPos.length == 1) parsedPos.push({ pad: 0 });
-					var defPos = defaults;
-					var swap = false;
-					
-					if ((parsedPos[0] && directionMap[parsedPos[0].norm] === 1) || 
-							(parsedPos[1] && directionMap[parsedPos[1].norm] === 0)) {
-						// need to swap the two directions so vertical is the first, then horizontal
-						swap = true;
-						if (parsedPos.length == 2) {
-							parsedPos = [ parsedPos[1], parsedPos[0] ];
-						}
-					}
-					
-					if (!posStr && prevPos) {
-						parsedPos = [];
-						// infer new defaults from the previous box's position, with one flipped direction
-						if (prevSwap) {
-							defPos = [ -prevPos[0].norm, prevPos[1].norm ];
-						} else {
-							defPos = [ prevPos[0].norm, -prevPos[1].norm ];
-						}
-					}
-					
-					console.log('defpos', prevPos, defPos, prevSwap);
-					// for each direction
-					prevPos = [0, 1].map(function(dir) {
-						var pos = ( parsedPos ? parsedPos[dir] : undefined );
-						if (!pos) {
-							return { norm: defPos[dir], pad: 0 };
-						}
-						return {
-							norm: ( normMap[pos.norm] !== undefined ? normMap[pos.norm] : defPos[dir] ),
-							pad: pos.pad
-						};
-					});
-					prevSwap = swap;
-					
-					return prevPos;
-				});
-				if (oneBox && res.length > 1) {
-					return res[0];
-				}
-				return res;
-			},
-			
-			/**
-			 * Normalizes a configuration string which can contain space-separated values for vertical, then for 
-			 * horizontal directions.
-			 *
-			 * @param {String} str The string to normalize.
-			 * @param {Array}  defaults Array with the defaults to infer for each direction (if not specified).
-			 * @return {Array} The normalized values, one for vertical and one for horizontal.
-			 */
-			_normalizeDirAttributes: function(str, defaults) {
-				var parsed = ( str ? str.split(' ') : []);
-				return [0, 1].map(function(idx) {
-					return parsed[idx] || defaults[idx];
-				});
 			}
 			
 		};
 		
 		
 		// utility functions
+		
+		/**
+		 * Normalizes a position string as described on the `position` property.
+		 *
+		 * Returns a list of two-dimensional arrays (vertical then horizontal, with either -1 for top/left, 0 for
+		 * center and 1 for bottom/right) for each position string.
+		 *
+		 * If `oneBox` is specified, will only return the first normalized position item (for the first box).
+		 *
+		 * Example: 'top left+2, bottom left-2' normalizes to
+		 * `[ [ {norm:-1,pad:0}, {norm:-1,pad:2} ], [ {norm:1,pad:0}, {norm:-1,pad:-2} ] ]`.
+		 *
+		 * @param {String|Array} str The string to normalize. Also accepts an already normalized array.
+		 * @param {Array}        [defaults] A two-dimensional array with the defaults to use.
+		 * @param {Boolean}      [oneBox] Just parse the position of one box.
+		 * @return {[[NormalizedPosition, NormalizedPosition]]} The normalized position object.
+		 */
+		function parsePositionString(str, defaults, oneBox) {
+			if (Array.isArray(str)) {
+				// already normalized
+				return str;
+			}
+			
+			if (!defaults) defaults = [0, 0];
+			
+			var normMap = { left: -1, top: -1, right: 1, bottom: 1, center: 0 };
+			var directionMap = { top: 0, bottom: 0, left: 1, right: 1 };
+			var parsed = ( str ? str.split(',') : []);
+			if (!parsed || !parsed.length) {
+				if (oneBox) return defaults;
+				parsed = [ '', '' ];
+			}
+			if (parsed.length == 1) {
+				parsed.push(''); // insert an empty position string for the target box
+			}
+			
+			var prevPos = null;
+			var prevSwap = false;
+			var res = parsed.map(function(posStr) {
+				function neg(n) {
+					return n == 0 ? n : -n;
+				}
+				
+				var parsedPos = posStr.trim().split(' ');
+				parsedPos = parsedPos.map(function(pstr) {
+					var match = /^([a-z]+)(?:([+-])([0-9]+))?$/.exec(pstr.trim());
+					if (!match) return { norm: undefined, pad: 0 };
+					return {
+						norm: match[1],
+						pad: (match[3] ? match[3] * ( match[2] == '+' ? 1 : -1) : 0)
+					};
+				});
+				if (parsedPos.length == 1) parsedPos.push({ pad: 0 });
+				var defPos = defaults;
+				var swap = false;
+				
+				if ((parsedPos[0] && directionMap[parsedPos[0].norm] === 1) ||
+					(parsedPos[1] && directionMap[parsedPos[1].norm] === 0)) {
+					// need to swap the two directions so vertical is the first, then horizontal
+					swap = true;
+					if (parsedPos.length == 2) {
+						parsedPos = [ parsedPos[1], parsedPos[0] ];
+					}
+				}
+				
+				if (!posStr && prevPos) {
+					parsedPos = [];
+					// infer new defaults from the previous box's position, with one flipped direction
+					if (prevSwap) {
+						defPos = [ neg(prevPos[0].norm), prevPos[1].norm ];
+					} else {
+						defPos = [ prevPos[0].norm, neg(prevPos[1].norm) ];
+					}
+				}
+				
+				// for each direction
+				prevPos = [0, 1].map(function(dir) {
+					var pos = ( parsedPos ? parsedPos[dir] : undefined );
+					if (!pos) {
+						return { norm: defPos[dir], pad: 0 };
+					}
+					return {
+						norm: ( normMap[pos.norm] !== undefined ? normMap[pos.norm] : defPos[dir] ),
+						pad: pos.pad
+					};
+				});
+				prevSwap = swap;
+				
+				return prevPos;
+			});
+			if (oneBox && res.length > 1) {
+				return res[0];
+			}
+			return res;
+		}
+		
+		/**
+		 * Normalizes a configuration string which can contain space-separated values for vertical, then for
+		 * horizontal directions.
+		 *
+		 * @param {String} str The string to normalize.
+		 * @param {Array}  defaults Array with the defaults to infer for each direction (if not specified).
+		 * @return {Array} The normalized values, one for vertical and one for horizontal.
+		 */
+		function parseDirAttribute(str, defaults) {
+			var parsed = ( str ? str.split(' ') : []);
+			return [0, 1].map(function(idx) {
+				return parsed[idx] || defaults[idx];
+			});
+		}
 		
 		/**
 		 * Returns a normalized version of the bounding box: an array for each direction (vertical, 
@@ -404,7 +406,6 @@
 		function positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc) {
 			var sourcePoint = getBoundingPoint(refBoundingBox, positionsDesc[0]);
 			var targetPos = computeTargetPosition(targetBoundingBox, positionsDesc[1], sourcePoint);
-			console.log(sourcePoint, targetPos, positionsDesc);
 			
 			return moveBoundingBox(targetBoundingBox, targetPos);
 		}
@@ -414,7 +415,7 @@
 		 * 
 		 * @param {Object} boundingBox The bounding box to verify.
 		 * @param {Object} viewport The viewport's box.
-		 * @param {Number} dir The direction to check on (0=vertical, 1=horizontal).
+		 * @param {Number} dir The direction to fit on (0=vertical, 1=horizontal).
 		 * @return {[Number, Number]} The calculated position (2D point: array of [top, left] coordinates).
 		 */
 		function positionBoxFit(boundingBox, viewport, dir) {
@@ -422,8 +423,12 @@
 			var normViewport = normalizeBoundingBox(viewport);
 			
 			var point = [ boundingBox.top, boundingBox.left ];
-			point[dir] = normViewport[dir][0] + normViewport[dir][1] -
-				normBounds[dir][1];
+			if (normBounds[dir][0] < normViewport[dir][0]) {
+				point[dir] = normViewport[dir][0];
+			} else if ((normBounds[dir][0] + normBounds[dir][1]) >
+					(normViewport[dir][0] + normViewport[dir][1])) {
+				point[dir] = normViewport[dir][0] + normViewport[dir][1] - normBounds[dir][1];
+			}
 			
 			return moveBoundingBox(boundingBox, point);
 		}
@@ -439,11 +444,8 @@
 		 * @param {Array} collisionMode The viewport's box.
 		 */
 		function positionBoxWithCollision(targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode) {
-			console.log('positionBoxWithCollision', targetBoundingBox, refBoundingBox, positionsDesc, viewport, collisionMode);
-			
 			// the resulting bounding box
 			var result = positionBoxRelative(targetBoundingBox, refBoundingBox, positionsDesc);
-			console.log('intrm', JSON.stringify(result));
 			
 			[0,1].forEach(function(dir) {
 				var currentPosDesc = JSON.parse(JSON.stringify(positionsDesc));
@@ -461,20 +463,34 @@
 						case 'flipfit':
 							currentPosDesc[0] = flipNormPosition(currentPosDesc[0], dir);
 							currentPosDesc[1] = flipNormPosition(currentPosDesc[1], dir);
-							var newCollisionMode = [ collisionMode[0], collisionMode[1] ];
-							newCollisionMode[dir] = 'fit';
-							console.log('flipfitting');
-							result = positionBoxWithCollision(result, refBoundingBox, 
-								currentPosDesc, viewport, newCollisionMode);
+							var flipResult = positionBoxRelative(result, refBoundingBox, currentPosDesc);
+							if (checkBoundsOnDirection(dir, flipResult, viewport)) {
+								result = flipResult;
+							} else {
+								result = positionBoxFit(result, viewport, dir);
+							}
+							
 							break;
 					}
 				}
 			});
 			
-			console.log('position result', result);
 			return result;
 		}
-		
+	
+		/**
+		 * Export some of PositionBehavior's methods as utility functions (mainly for unit testing).
+		 */
+		scope.PositionBehaviorUtils = {
+			parsePositionString: parsePositionString,
+			parseDirAttribute: parseDirAttribute,
+			getBoundingPoint: getBoundingPoint,
+			computeTargetPosition: computeTargetPosition,
+			checkBoundsOnDirection: checkBoundsOnDirection,
+			positionBoxRelative: positionBoxRelative,
+			positionBoxFit: positionBoxFit,
+			positionBoxWithCollision: positionBoxWithCollision
+		};
 		
 		/**
 		 * Describes the normalized position object type for one direction.

@@ -1,0 +1,212 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+	
+	<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+	<script src="../../web-component-tester/browser.js"></script>
+	
+	<script src="../../test-fixture/test-fixture-mocha.js"></script>
+	<link rel="import" href="../../test-fixture/test-fixture.html" />
+	
+	<!-- Elements to be tested -->
+	<link rel="import" href="../lib/position-behavior.html" />
+	<link rel="import" href="../demo/mock/position-client.html" />
+	
+</head>
+<body>
+
+<test-fixture id="positionClient">
+	<template is="dom-template">
+		<div id="viewport">
+			<test-position-client position="{{ position }}"></test-position-client>
+		</div>
+	</template>
+</test-fixture>
+
+<script>
+	
+	suite('box positioning routines', function () {
+		var utils = Cbn.PositionBehaviorUtils;
+		
+		function bb(left, top, width, height) {
+			return {
+				top: top, left: left, height: height, width: width
+			};
+		}
+		
+		test('position parsing', function () {
+			// full position strings
+			assert.deepEqual(utils.parsePositionString('top left, bottom right'), 
+				[ [ { norm: -1, pad:0 }, { norm: -1, pad:0 } ], 
+				  [ { norm: 1, pad:0 }, { norm: 1, pad:0 } ] ], 'top left, bottom right');
+			assert.deepEqual(utils.parsePositionString('center left, bottom center'),
+				[ [ { norm: 0, pad:0 }, { norm: -1, pad:0 } ],
+					[ { norm: 1, pad:0 }, { norm: 0, pad:0 } ] ], 'center left, bottom center');
+			assert.deepEqual(utils.parsePositionString('left bottom, center top'),
+				[ [ { norm: 1, pad:0 }, { norm: -1, pad:0 } ],
+					[ { norm: -1, pad:0 }, { norm: 0, pad:0 } ] ], 'left bottom, center top');
+			assert.deepEqual(utils.parsePositionString('center center, center bottom'),
+				[ [ { norm: 0, pad:0 }, { norm: 0, pad:0 } ],
+					[ { norm: 1, pad:0 }, { norm: 0, pad:0 } ] ], 'center center, center bottom');
+			
+			// defaults
+			assert.deepEqual(utils.parsePositionString(''),
+				[ [ { norm: 0, pad:0 }, { norm: 0, pad:0 } ],
+					[ { norm: 0, pad:0 }, { norm: 0, pad:0 } ] ], 'empty position string');
+			assert.deepEqual(utils.parsePositionString('left, bottom'),
+				[ [ { norm: 0, pad:0 }, { norm: -1, pad:0 } ],
+					[ { norm: 1, pad:0 }, { norm: 0, pad:0 } ] ], 'left, bottom');
+			assert.deepEqual(utils.parsePositionString('center, right'),
+				[ [ { norm: 0, pad:0 }, { norm: 0, pad:0 } ],
+					[ { norm: 0, pad:0 }, { norm: 1, pad:0 } ] ], 'center, right');
+			
+			// positions with padding
+			assert.deepEqual(utils.parsePositionString('top left+11, bottom-20 right'),
+				[ [ { norm: -1, pad:0 }, { norm: -1, pad:11 } ],
+					[ { norm: 1, pad:-20 }, { norm: 1, pad:0 } ] ], 'top left+11, bottom-20 right');
+			assert.deepEqual(utils.parsePositionString('center+55 left-21, bottom-8 center+1'),
+				[ [ { norm: 0, pad:55 }, { norm: -1, pad:-21 } ],
+					[ { norm: 1, pad:-8 }, { norm: 0, pad:1 } ] ], 'center+55 left-21, bottom-8 center+1');
+			
+			// "my" position inference
+			assert.deepEqual(utils.parsePositionString('top left'), // my='top right'
+				[ [ { norm: -1, pad:0 }, { norm: -1, pad:0 } ],
+					[ { norm: -1, pad:0 }, { norm: 1, pad:0 } ] ], 'top left');
+			assert.deepEqual(utils.parsePositionString('center right'), // my='center right'
+				[ [ { norm: 0, pad:0 }, { norm: 1, pad:0 } ],
+					[ { norm: 0, pad:0 }, { norm: -1, pad:0 } ] ], 'center right');
+			assert.deepEqual(utils.parsePositionString('left top'), // my='bottom left'
+				[ [ { norm: -1, pad:0 }, { norm: -1, pad:0 } ],
+					[ { norm: 1, pad:0 }, { norm: -1, pad:0 } ] ], 'left top');
+			assert.deepEqual(utils.parsePositionString('right bottom'), // my='top right'
+				[ [ { norm: 1, pad:0 }, { norm: 1, pad:0 } ],
+					[ { norm: -1, pad:0 }, { norm: 1, pad:0 } ] ], 'top left');
+			
+			// invalid position strings => defaults
+			assert.deepEqual(utils.parsePositionString('auto, invalid'),
+				[ [ { norm: 0, pad:0 }, { norm: 0, pad:0 } ],
+					[ { norm: 0, pad:0 }, { norm: 0, pad:0 } ] ], 'auto, invalid');
+			assert.deepEqual(utils.parsePositionString('auto right, invalid top'),
+				[ [ { norm: 0, pad:0 }, { norm: 1, pad:0 } ],
+					[ { norm: -1, pad:0 }, { norm: 0, pad:0 } ] ], 'auto right, invalid top');
+			
+		});
+		
+		test('source & target positions computation', function () {
+			var bb = {
+				left: 100, top: 241,
+				width: 600, height: 340
+			};
+			
+			// source point computation
+			assert.deepEqual(utils.getBoundingPoint(bb, [ { norm: -1, pad: 0 }, { norm: 1, pad: 0 } ]),
+				[ 241, 100+600 ], 'top right');
+			assert.deepEqual(utils.getBoundingPoint(bb, [ { norm: 1, pad: 0 }, { norm: -1, pad: 0 } ]),
+				[ 241+340, 100 ], 'bottom left');
+			assert.deepEqual(utils.getBoundingPoint(bb, [ { norm: -1, pad: 0 }, { norm: 0, pad: 0 } ]),
+				[ 241, 100+300 ], 'top center');
+			assert.deepEqual(utils.getBoundingPoint(bb, [ { norm: 0, pad: 0 }, { norm: -1, pad: 0 } ]),
+				[ 241+170, 100 ], 'center left');
+			assert.deepEqual(utils.getBoundingPoint(bb, [ { norm: -1, pad: 10 }, { norm: -1, pad: -5 } ]),
+				[ 241+10, 100-5 ], 'top+10 left-5');
+			assert.deepEqual(utils.getBoundingPoint(bb, [ { norm: 0, pad: 10 }, { norm: 0, pad:-20 } ]),
+				[ 241+170+10, 100+300-20 ], 'center+10 center-20');
+			
+			// target position computation
+			assert.deepEqual(utils.computeTargetPosition(bb, [ { norm:-1, pad:0 }, { norm:-1, pad:0 } ],
+				[ 600, 500 ] ), [ 600, 500 ], 'target, top left');
+			assert.deepEqual(utils.computeTargetPosition(bb, [ { norm:1, pad:0 }, { norm:1, pad:0 } ],
+				[ 600, 500 ] ), [ 600-340, 500-600 ], 'target, bottom right');
+			assert.deepEqual(utils.computeTargetPosition(bb, [ { norm:-1, pad:0 }, { norm:0, pad:0 } ],
+				[ 600, 500 ] ), [ 600, 500-300 ], 'target, top center');
+			assert.deepEqual(utils.computeTargetPosition(bb, [ { norm:0, pad:0 }, { norm:1, pad:0 } ],
+				[ 600, 500 ] ), [ 600-170, 500-600 ], 'target, center right');
+			assert.deepEqual(utils.computeTargetPosition(bb, [ { norm:-1, pad:10 }, { norm:1, pad:-5 } ],
+				[ 600, 500 ] ), [ 600-10, 500-600+5 ], 'target, top+10 right-5');
+			assert.deepEqual(utils.computeTargetPosition(bb, [ { norm:0, pad:-10 }, { norm:0, pad:20 } ],
+				[ 600, 500 ] ), [ 600-170+10, 500-300-20 ], 'target, center-10 center+20');
+		});
+		
+		test('bounds checking', function () {
+			var vp = {
+				left: 100, top: 200,
+				width: 800, height: 600
+			};
+			
+			var innerBox = bb(102, 205, 500, 500);
+			assert.ok(utils.checkBoundsOnDirection(0, innerBox, vp), 'inner box (Y)');
+			assert.ok(utils.checkBoundsOnDirection(1, innerBox, vp), 'inner box (X)');
+			
+			var fitBox = bb(100, 200, 800, 600);
+			assert.ok(utils.checkBoundsOnDirection(0, fitBox, vp), 'exact fit box (Y)');
+			assert.ok(utils.checkBoundsOnDirection(1, fitBox, vp), 'exact fit box (X)');
+			
+			var topLeftColBox = bb(90, 100, 100, 100);
+			assert.notOk(utils.checkBoundsOnDirection(0, topLeftColBox, vp), 'top/left collision box (Y)');
+			assert.notOk(utils.checkBoundsOnDirection(1, topLeftColBox, vp), 'top/left collision box (X)');
+			
+			var bottomRightColBox = bb(200, 300, 1000, 1000);
+			assert.notOk(utils.checkBoundsOnDirection(0, bottomRightColBox, vp), 'bottom/right collision box (Y)');
+			assert.notOk(utils.checkBoundsOnDirection(1, bottomRightColBox, vp), 'bottom/right collision box (X)');
+			
+			var leftOuterBox = bb(10, 200, 50, 50);
+			assert.ok(utils.checkBoundsOnDirection(0, leftOuterBox, vp), 'left outer box (Y)');
+			assert.notOk(utils.checkBoundsOnDirection(1, leftOuterBox, vp), 'left outer box (X)');
+		});
+		
+		test('relative&fit positioning', function () {
+			// relative positioning
+			assert.deepEqual(utils.positionBoxRelative(bb(-1, -1, 500, 400), bb(100, 100, 100, 100),
+				utils.parsePositionString("top right, top left")), bb(200, 100, 500, 400), 'relative: right');
+			assert.deepEqual(utils.positionBoxRelative(bb(-1, -1, 500, 400), bb(100, 500, 600, 100),
+				utils.parsePositionString("bottom right, top right")), bb(600+100-500, 500+100, 500, 400), 'relative: bottom right, top right');
+			assert.deepEqual(utils.positionBoxRelative(bb(-1, -1, 80, 50), bb(550, 500, 100, 100),
+				utils.parsePositionString("center top")), bb(550+50-40, 500-50, 80, 50), 'relative: center top');
+			assert.deepEqual(utils.positionBoxRelative(bb(-1, -1, 50, 40), bb(100, 120, 200, 300),
+				utils.parsePositionString("center")), bb(100+100-25, 120+150-20, 50, 40), 'relative: center');
+			
+			// fit positioning
+			var vp = bb(10, 10, 390, 290);
+			assert.deepEqual(utils.positionBoxFit(bb(0, 0, 80, 90), vp, 0), bb(0, 10, 80, 90), 'fit: top');
+			assert.deepEqual(utils.positionBoxFit(bb(0, 0, 80, 90), vp, 1), bb(10, 0, 80, 90), 'fit: left');
+			assert.deepEqual(utils.positionBoxFit(bb(0, 1000, 80, 90), vp, 0), bb(0, 210, 80, 90), 'fit: bottom');
+			assert.deepEqual(utils.positionBoxFit(bb(1000, 0, 80, 90), vp, 1), bb(320, 0, 80, 90), 'fit: right');
+		});
+		
+		test('positioning with collision', function () {
+			var vp = bb(0, 0, 1000, 1000);
+			var box = bb(0, 0, 300, 200);
+			
+			var refMid = bb(500, 500, 100, 100);
+			var refTopLeft = bb(100, 100, 100, 100);
+			var refBottomRight = bb(100, 800, 800, 100);
+			var refLarge = bb(100, 100, 900, 900);
+			
+			var pTop = utils.parsePositionString("top left, bottom left");
+			var pLeft = utils.parsePositionString("top left, top right");
+			var pTopLeft = utils.parsePositionString("top left, bottom right");
+			var pBottomRight = utils.parsePositionString("bottom right, top left");
+			
+			var colFlFi = [ 'flip', 'fit' ]; // warning: [ Y, X ] !
+			var colFlipfit = [ 'flipfit', 'flipfit' ];
+			
+			assert.deepEqual(utils.positionBoxWithCollision(box, refMid, pTop, vp, colFlFi), 
+				bb(500, 300, 300, 200), 'top from mid, no collision');
+			assert.deepEqual(utils.positionBoxWithCollision(box, refTopLeft, pTop, vp, colFlFi),
+				bb(100, 200, 300, 200), 'top from topLeft, flip');
+			assert.deepEqual(utils.positionBoxWithCollision(box, refTopLeft, pLeft, vp, colFlFi),
+				bb(0, 100, 300, 200), 'left from topLeft, fit');
+			assert.deepEqual(utils.positionBoxWithCollision(box, refBottomRight, pBottomRight, vp, colFlipfit),
+				bb(700, 600, 300, 200), 'flipfit: fit on X, flip on Y');
+			assert.deepEqual(utils.positionBoxWithCollision(box, refLarge, pTopLeft, vp, colFlipfit),
+				bb(0, 0, 300, 200), 'flipfit: fit on both axes');
+		});
+	});
+
+
+</script>
+
+</body>
+</html>
