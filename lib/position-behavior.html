@@ -155,8 +155,9 @@
 				}
 				var refBounds = ref.getBoundingClientRect();
 				if (!refBounds.width || !refBounds.height) {
-					console.warn('`PositionBehavior#computeElementPosition`: ',
-						'invalid reference element dimensions! (is it visible?)');
+					if (!options.callbacks || !options.callbacks.updateDimensions)
+						console.warn('`PositionBehavior#computeElementPosition`: ',
+							'invalid reference element dimensions! (is it visible?)');
 				}
 				
 				var viewport = this._getViewportBoundingBox(options.viewport, options.viewportMargin);
