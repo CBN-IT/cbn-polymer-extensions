@@ -127,7 +127,6 @@
 				var translatedCoords = [ 0, 0 ];
 				if (this.positionFixTransform === '' || (this.positionFixTransform && this.positionFixTransform != 'false')) {
 					translatedCoords = this._computeTranslatedCoordinates(target);
-					console.log('translated', translatedCoords);
 				}
 				
 				target.style.left = Math.round(pos.left - translatedCoords[0]) + "px";
