@@ -257,9 +257,11 @@
 						pad: (match[3] ? match[3] * ( match[2] == '+' ? 1 : -1) : 0)
 					};
 				});
-				if (parsedPos.length == 1) parsedPos.push({ pad: 0 });
 				var defPos = defaults;
 				var swap = false;
+				if (parsedPos.length == 1) {
+					parsedPos.splice(0, 0, { pad: 0 });
+				}
 				
 				if ((parsedPos[0] && directionMap[parsedPos[0].norm] === 1) ||
 					(parsedPos[1] && directionMap[parsedPos[1].norm] === 0)) {

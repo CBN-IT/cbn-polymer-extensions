@@ -85,6 +85,12 @@
 			assert.deepEqual(utils.parsePositionString('right bottom'), // my='top right'
 				[ [ { norm: 1, pad:0 },{ norm: 1, pad:0 } ],
 					[ { norm: 1, pad:0 },{ norm: -1, pad:0 } ] ], 'top left');
+			assert.deepEqual(utils.parsePositionString('left'), // my='right center'
+				[ [ { norm: -1, pad:0 },{ norm: 0, pad:0 } ],
+					[ { norm: 1, pad:0 },{ norm: 0, pad:0 } ] ], 'left');
+			assert.deepEqual(utils.parsePositionString('bottom'), // my='center bottom'
+				[ [ { norm: 0, pad:0 },{ norm: 1, pad:0 } ],
+					[ { norm: 0, pad:0 },{ norm: -1, pad:0 } ] ], 'bottom');
 			
 			// invalid position strings => defaults
 			assert.deepEqual(utils.parsePositionString('auto, invalid'),
