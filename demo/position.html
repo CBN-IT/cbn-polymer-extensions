@@ -33,6 +33,15 @@
 			<test-position-client text="bottom" position="center bottom"></test-position-client>
 		</p>
 		
+		<div style="transform: translate3d(0px, -50px, 0px);">
+			<div style="transform: translate3d(50px, 100px, 0px);">
+				<test-position-client text="fix local coordinate system" 
+									  position="top right, top left"></test-position-client>
+				<test-position-client text="local coordinate system, no fix" position-fix-transform="false"
+									  position="top right, top left"></test-position-client>
+			</div>
+		</div>
+		
 	</template>
 </div>
 	

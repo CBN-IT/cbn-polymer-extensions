@@ -87,6 +87,14 @@
 				},
 				
 				/**
+				 * Whether to apply fix for CSS transform modifying the coordinate system of the target element.
+				 */
+				positionFixTransform: {
+					type: String,
+					value: 'true'
+				},
+				
+				/**
 				 * The default reference element.
 				 */
 				positionReference: {
@@ -115,8 +123,15 @@
 			updateElementPosition: function(target, ref, options) {
 				var pos = this.computeElementPosition(target, ref, options);
 				
-				target.style.left = Math.round(pos.left) + "px";
-				target.style.top = Math.round(pos.top) + "px";
+				// see if a parent node has transform / will-change: transform (it modifies the coordinate system)
+				var translatedCoords = [ 0, 0 ];
+				if (this.positionFixTransform === '' || (this.positionFixTransform && this.positionFixTransform != 'false')) {
+					translatedCoords = this._computeTranslatedCoordinates(target);
+					console.log('translated', translatedCoords);
+				}
+				
+				target.style.left = Math.round(pos.left - translatedCoords[0]) + "px";
+				target.style.top = Math.round(pos.top - translatedCoords[1]) + "px";
 			},
 			
 			/**
@@ -167,6 +182,48 @@
 			},
 			
 			// Some utility / protected methods:
+			
+			/**
+			 * Checks if the target element has a local coordinate system (enabled by a CSS transform) and returns the 
+			 * coordinates to translate back to the window's system.
+			 * 
+			 * @param {Element} target The target element.
+			 * @return {[Number,Number]} The accumulated coordinates of the parents, if found.
+			 */
+			_computeTranslatedCoordinates: function (target) {
+				function getParentNode(node) {
+					var parentNode = node.parentNode;
+					if (parentNode && window.ShadowRoot && parentNode instanceof ShadowRoot) {
+						return parentNode.host;
+					}
+					if (parentNode.nodeType == Node.DOCUMENT_NODE) {
+						return null;
+					}
+					return parentNode;
+				}
+				
+				var ua = navigator.userAgent;
+				// skip for IE / Edge (they don't change the coordinate system on fixed elements)
+				var isIE = /\b(Edge|MSIE|Trident)\b/i.test(ua);
+				if (isIE) {
+					return [0, 0];
+				}
+				
+				var parent = getParentNode(target);
+				var coords = [0, 0];
+				while (parent) {
+					var computedStyle = window.getComputedStyle(parent);
+					if (computedStyle.transform != 'none') {
+						// get the coordinates of the element
+						var parentRect = parent.getBoundingClientRect();
+						coords[0] += parentRect.left;
+						coords[1] += parentRect.top;
+						break;
+					}
+					parent = getParentNode(parent);
+				}
+				return coords;
+			},
 			
 			/**
 			 * Returns the normalized viewport bounding box for the current / specified viewport.
