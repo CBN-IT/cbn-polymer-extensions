@@ -530,21 +530,28 @@
 		/**
 		 * Computes the space available for a direction from the specified point.
 		 *
-		 * @param {[NormalizedPosition, NormalizedPosition]} normPosition The normalized position descriptor of the
+		 * @param {[[NormalizedPosition, NormalizedPosition]]} positionDesc The normalized position descriptor of the
 		 *                                                   target point.
 		 * @param {Object} targetBox The target box.
 		 * @param {Object} viewport The viewport's box.
 		 * @param {Number} dir The direction to fit on (0=horizontal, 1=vertical).
 		 * @return {Number} The number of pixels available to position the box.
 		 */
-		function computeAvailableSpace(normPosition, targetBox, viewport, dir) {
+		function computeAvailableSpace(positionDesc, targetBox, viewport, dir) {
 			var normViewport = normalizeBoundingBox(viewport);
-			var sourcePoint = getBoundingPoint(targetBox, normPosition);
-			if (normPosition[dir].norm == -1) {
-				return Math.round(Math.abs(-normViewport[dir][0] + sourcePoint[dir]));
-			} else {
-				return Math.round(Math.abs(normViewport[dir][0] + normViewport[dir][1] - sourcePoint[dir]));
+			var sourcePoint = getBoundingPoint(targetBox, positionDesc[0]);
+			
+			var pointPos = sourcePoint[dir]; // the source coordinate
+			var vpPos = normViewport[dir][0]; // the start of the viewport
+			
+			// orientation of the box: -1 if on left / top, 1 if on right / bottom of the source point
+			var orientation = (positionDesc[0][dir].norm == positionDesc[1][dir].norm ? 
+					-positionDesc[0][dir].norm : positionDesc[0][dir].norm);
+			if (orientation == 1) {
+				vpPos = normViewport[dir][0] + normViewport[dir][1];
 			}
+			
+			return Math.round(Math.abs(pointPos - vpPos));
 		}
 		
 		/**
@@ -575,8 +582,8 @@
 						dir: dir,
 						collision: collision,
 						availableSpace: {
-							0: computeAvailableSpace(positionsDesc[0], refBoundingBox, viewport, 0),
-							1: computeAvailableSpace(positionsDesc[0], refBoundingBox, viewport, 1)
+							0: computeAvailableSpace(positionsDesc, refBoundingBox, viewport, 0),
+							1: computeAvailableSpace(positionsDesc, refBoundingBox, viewport, 1)
 						}
 					});
 				}
@@ -599,8 +606,8 @@
 					if (callbacks && callbacks.onCollision) {
 						var newCollisionMode = callbacks.onCollision(dir, collisionMode[dir], {
 							// available spaces
-							normal: computeAvailableSpace(currentPosDesc[0], refBoundingBox, viewport, dir),
-							flip: computeAvailableSpace(flippedPosDesc[0], refBoundingBox, viewport, dir)
+							normal: computeAvailableSpace(currentPosDesc, refBoundingBox, viewport, dir),
+							flip: computeAvailableSpace(flippedPosDesc, refBoundingBox, viewport, dir)
 						});
 						if (newCollisionMode) {
 							// new collision action
