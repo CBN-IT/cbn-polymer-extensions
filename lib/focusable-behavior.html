@@ -1,0 +1,339 @@
+<link rel="import" href="utils.html" />
+
+<script>
+	(function(scope) {
+		var domUtils = scope.Utils.Dom;
+		
+		/**
+		 * Whether to enable console logging.
+		 */
+		var debug = false;
+		
+		
+		/**
+		 * Utility behavior that helps a complex element (i.e. that may have children) retain focus.
+		 * 
+		 * Also provides new `focus-in` and `focus-out` events, fired when the target and its children gain / lose focus.
+		 * 
+		 * Strives to be compatible with `IronControlStateBehavior` and `paper-input-container`.
+		 * 
+		 * @type {Element}
+		 * @polymerBehavior
+		 */
+		scope.FocusableBehavior = {
+			
+			properties: {
+				
+				/**
+				 * Whether the element has focus.
+				 */
+				focused: {
+					type: Boolean,
+					value: false,
+					reflectToAttribute: true,
+					readOnly: true,
+					notify: true
+				},
+				
+				/**
+				 * The element that should receive the focus.
+				 */
+				focusTarget: {
+					type: Object,
+					value: function() { return this; }
+				},
+				
+				/**
+				 * The focusable container whose children are able to freely receive the focus without re-triggering the
+				 * `focus-in` / `focus-out` events.
+				 * 
+				 * It should have a tab index (i.e. be focusable).
+				 */
+				focusableContainer: {
+					type: Object,
+					value: function() { return this.focusTarget; }
+				},
+				
+				/**
+				 * A selector for the ancestor to apply the focus/blur listeners to.
+				 * 
+				 * If empty or the selector doesn't match anything among the ancestors chain, the listeners will be 
+				 * bound to current element (`this`).
+				 * 
+				 * Useful in combination with elements that implement `paper-input-behavior` (or contains any children 
+				 * that capture the `focus`/`blur` events and need to be 'fooled').
+				 */
+				focusableAncestor: {
+					type: String,
+					value: ''
+				},
+				
+				/**
+				 * The element found using the selector above.
+				 */
+				_focusableAncestorEl: {
+					type: Object,
+					value: null
+				},
+				
+				/**
+				 * Whether the current element needs to maintain its focus by its next blur event.
+				 */
+				_refocus: {
+					type: Boolean,
+					value: false
+				},
+				
+				/**
+				 * True while the refocusing operation is active.
+				 */
+				_refocusing: {
+					type: Object,
+					value: null
+				},
+				
+				/**
+				 * The element to be refocused.
+				 */
+				_refocusElement: {
+					type: Object,
+					value: null
+				},
+				
+				/**
+				 * The focus event handler, bound to the current element.
+				 */
+				_boundFocusedHandler: {
+					type: Function,
+					value: function() { return this._focusHandler.bind(this); }
+				},
+				
+				/**
+				 * The blur event handler, bound to the current element.
+				 */
+				_boundBlurHandler: {
+					type: Function,
+					value: function() { return this._blurHandler.bind(this); }
+				}
+				
+			},
+			
+			hostAttributes: {
+				'tabindex': '-1'
+			},
+			
+			/**
+			 * When the target element or its children receives focus. 
+			 * It will not re-fire if the focus is passed between its children.
+			 * Bubbles.
+			 * 
+			 * @event focus-in
+			 */
+			
+			/**
+			 * When the target element and all of its children lose focus.
+			 * Bubbles.
+			 *
+			 * @event focus-out
+			 */
+			
+			/**
+			 * Callback when an element instance is attached to the DOM. Used to set up event handlers.
+			 */
+			attached: function() {
+				// find the focusable ancestor
+				if (!this._focusableAncestorEl) {
+					if (this.focusableAncestor && typeof this.focusableAncestor == 'object') {
+						this._focusableAncestorEl = this.focusableAncestor;
+					} else if (this.focusableAncestor) {
+						var parent = domUtils.getShadowParentNode(this);
+						while (parent) {
+							if (domUtils.selectorMatches(/**@type {Element}*/parent, 
+									/**@type {String}*/ this.focusableAncestor)) {
+								this._focusableAncestorEl = parent;
+								break;
+							}
+							parent = domUtils.getShadowParentNode(parent);
+						}
+					}
+					if (!this._focusableAncestorEl) {
+						this._focusableAncestorEl = this;
+					}
+				}
+				// capture those events for the element itself and all its children
+				this._focusableAncestorEl.addEventListener('focus',
+					/**@type {Function}*/this._boundFocusedHandler, true);
+				this._focusableAncestorEl.addEventListener('blur',
+					/**@type {Function}*/this._boundBlurHandler, true);
+				
+				/*
+				 * IronControlStateBehavior has a focus handler that refires the event if on Shady DOM.
+				 * We need to stop it in some cases (by using stopImmediatePropagation), thus the following hack:
+				 */
+				if (this._focusableAncestorEl._boundFocusBlurHandler) {
+					this._focusableAncestorEl.removeEventListener('blur', 
+						/**@type {Function}*/this._focusableAncestorEl._boundFocusBlurHandler, true);
+					this._focusableAncestorEl.addEventListener('blur',
+						/**@type {Function}*/this._focusableAncestorEl._boundFocusBlurHandler, true);
+				}
+				
+				// listen for mousedown to set the refocus target
+				this.listen(this._focusableAncestorEl, 'mousedown', '_detectRefocus');
+			},
+			
+			/**
+			 * Callback when an element instance is attached to the DOM. Used to clean up event handlers.
+			 */
+			detached: function() {
+				this._focusableAncestorEl.removeEventListener('focus',
+					/**@type {Function}*/this._boundFocusedHandler, true);
+				this._focusableAncestorEl.removeEventListener('blur',
+					/**@type {Function}*/this._boundBlurHandler, true);
+				this.unlisten(this._focusableAncestorEl, 'mousedown', '_detectRefocus');
+			},
+			
+			/**
+			 * Override the focus method of the element to focus the `focusTarget` instead.
+			 */
+			focus: function() {
+				if (this._refocusing) return;
+				
+				var $super = Object.getPrototypeOf(this);
+				
+				if (this.focusTarget == this && $super.focus) {
+					$super.focus.apply(this, arguments); // call the original focus()
+				} else if (this.focusTarget) {
+					this.focusTarget.focus();
+				}
+			},
+			
+			
+			/*
+			 * Note: the order of the events of interest is the following:
+			 * 
+			 * 1. mousedown (if mouse changes focus);
+			 * 2. blur (caught in the capturing phase);
+			 * 3. focus (caught in the capturing phase);
+			 */
+			
+			/**
+			 * Captures the focus event on the element or any of its children.
+			 */
+			_focusHandler: function (event) {
+				// ignore IronControlState's re-fired events
+				if (event.detail && event.detail.sourceEvent)
+					return;
+				var target = Polymer.dom(event).rootTarget;
+				if (debug) console.log('focus', target.nodeName, this._refocusing);
+				
+				if (domUtils.deepContainsElement(/**@type {Element}*/this.focusableContainer, target)) {
+					// the target element was focused directly
+				} else if (!this._refocusing) {
+					// need to refocus the target
+					this._doRefocus();
+				}
+				if (this.focused) {
+					// event.stopPropagation();
+				} else {
+					this._changeFocusState(true);
+				}
+				this._refocus = false;
+			},
+			
+			/**
+			 * Captures the blur event on the element or any of its children.
+			 */
+			_blurHandler: function(event) {
+				var target = Polymer.dom(event).rootTarget;
+				if (debug) console.log('blur', target.nodeName, event.detail, (this._refocusing ? 'refocusing!' : ''));
+				
+				// ignore IronControlState's re-fired events
+				if (event.detail && event.detail.sourceEvent) {
+					event.stopPropagation();
+					event.stopImmediatePropagation();
+					return;
+				}
+				
+				if (this._refocusing) {
+					// if the target element is currently refocusing, ignore all blurs
+					event.stopPropagation();
+					event.stopImmediatePropagation();
+					return;
+				}
+				
+				if (this._refocus) {
+					if (debug) console.log('gonna refocus!');
+					event.stopPropagation();
+					event.stopImmediatePropagation();
+					// need to refocus the last focused element
+					this._doRefocus();
+					
+				} else {
+					// the element was blurred
+					if (debug) console.log('blurred fo real');
+					this._changeFocusState(false);
+				}
+				this._refocus = false;
+			},
+			
+			/**
+			 * Refocuses to the element that was focused before the blur.
+			 * 
+			 * When the `focus()` method is used on an element, the blur + focus events are synchronous (except on FF).
+			 * We set the `_refocusing` property to true when this happens in order to prevent an infinite loop.
+			 */
+			_doRefocus: function() {
+				var focusTarget = this._refocusElement || this.focusTarget;
+				if (debug) console.log('doRefocus()', focusTarget);
+				this._refocusing = true;
+				
+				focusTarget.focus();
+				this.async(function(){
+					// focusTarget.focus();
+					this._refocusing = false;
+				}, 1);
+			},
+			
+			/**
+			 * Changes the `focused` state and emits a `focus-in` / `focus-out` event.
+			 * 
+			 * @param {Boolean} focused The new focus state to set.
+			 */
+			_changeFocusState: function(focused) {
+				this._setFocused(focused);
+				if (this.focused) {
+					this.fire('focus-in', {});
+				} else {
+					this.fire('focus-out', {});
+				}
+			},
+			
+			/**
+			 * Detects when a children element is being focused and sets the `_refocus` property to move the focus back 
+			 * to the target element.
+			 */
+			_detectRefocus: function(ev) {
+				this._refocus = true;
+				this._refocusElement = Polymer.dom(ev).rootTarget;
+				if (!this._refocusElement || !domUtils.deepContainsElement(
+						/**@type {Element}*/this.focusableContainer, this._refocusElement)) {
+					this._refocusElement = null;
+				}
+				if (debug) console.log('mousedown', ev.target.nodeName, this._refocusElement);
+				
+				this.async(function() {
+					this._refocus = false;
+					this._refocusElement = null;
+				}, 10);
+			}
+			
+			
+			// JSDoc
+			
+			/**
+			 * @name _setFocused Internal setter for the `focused` property.
+			 */
+		};
+		
+	})(window.Cbn);
+</script>

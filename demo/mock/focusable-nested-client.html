@@ -1,0 +1,50 @@
+<link rel="import" href="../../../polymer/polymer.html">
+
+<link rel="import" href="../../lib/focusable-behavior.html">
+
+<dom-module id="test-focusable-nested-client">
+	<style>
+		:host { display: inline-block; }
+		
+	</style>
+	
+	<template>
+		<div id="container" tabindex="-1">
+			<test-focusable-client focusable-ancestor="test-focusable-nested-client" 
+								   text="{{text}}" position="right" id="nested"></test-focusable-client>
+		</div>
+	</template>
+</dom-module>
+
+<script>
+	
+	Polymer({
+		is: 'test-focusable-nested-client',
+		
+		properties: {
+			
+			text: {
+				type: String,
+				value: 'Nested Focusable Element'
+			}
+			
+		},
+		
+		attached: function() {
+			this.$.container.addEventListener('focus', this._myFocusHandler, true);
+			this.$.container.addEventListener('blur', this._myBlurHandler, true);
+		},
+		
+		_myFocusHandler: function(ev) {
+			// should not fire when refocusing inner children
+			console.trace('Nested container focused!', ev.target);
+		},
+		
+		_myBlurHandler: function(ev) {
+			// should not fire when refocusing inner children
+			console.log('Nested container blurred!', ev.target);
+		}
+	
+	});
+	
+</script>

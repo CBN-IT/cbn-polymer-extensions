@@ -1,0 +1,132 @@
+<link rel="import" href="../../../polymer/polymer.html">
+
+<link rel="import" href="../../lib/position-behavior.html">
+<link rel="import" href="../../lib/focusable-behavior.html">
+<link rel="import" href="../../../paper-button/paper-button.html">
+<link rel="import" href="../../../paper-input/paper-input.html">
+<link rel="import" href="../../../iron-flex-layout/iron-flex-layout.html">
+
+<dom-module id="test-focusable-client-children">
+	<style>
+		:host { display: inline-block; }
+		
+		#container {
+			@apply(--layout-horizontal);
+		}
+		
+		#container paper-input {
+			margin-right: 1em;
+		}
+		
+		#dialog {
+			display: none;
+			position: fixed;
+			z-index: 9999;
+			box-sizing: border-box;
+			padding: 10px;
+			
+			width: var(--test-pos-dialog-width, 400px);
+			height: var(--test-pos-dialog-height, 300px);
+			background: var(--test-pos-dialog-background, #EEE);
+			border: var(--test-pos-dialog-border, 1px solid #DDD);
+			
+			font-weight: bold;
+			color: black;
+		}
+		
+		#dialog.open {
+			display: block;
+		}
+		
+	</style>
+	
+	<template>
+		<div id="container" tabindex="-1">
+			<paper-input id="input" type="text" floating-label label="{{ text }}"></paper-input>
+			<paper-input id="input" type="text" floating-label label="{{ text2 }}"></paper-input>
+			<!--<label>-->
+				<!--{{ text }}-->
+				<!--<input id="input" type="text" />-->
+			<!--</label>-->
+		</div>
+		
+		<div id="dialog" class$="{{_computeDialogClasses(_open)}}">
+			<paper-button tabindex="-1" on-tap="_buttonClicked">Btn1</paper-button>
+			<paper-button tabindex="-1" on-tap="_buttonClicked">Btn2</paper-button>
+		</div>
+		
+	</template>
+</dom-module>
+
+<!--suppress JSUnusedGlobalSymbols -->
+<script>
+	Polymer({
+		is: 'test-focusable-client-children',
+		
+		properties: {
+			
+			text: {
+				type: String,
+				value: 'Focusable One'
+			},
+			
+			text2: {
+				type: String,
+				value: 'Focusable Two'
+			},
+			
+			_open: {
+				type: Boolean,
+				value: false
+			},
+			
+			focusTarget: {
+				type: Element,
+				value: function() {
+					//noinspection JSUnresolvedVariable
+					return (this.$ ? this.$.input : this);
+				}
+			},
+			
+			focusableContainer: {
+				type: Element,
+				value: function() {
+					//noinspection JSUnresolvedVariable
+					return (this.$ ? this.$.container : this);
+				}
+			}
+			
+		},
+		
+		behaviors: [
+			Cbn.PositionBehavior,
+			Cbn.FocusableBehavior
+		],
+		
+		listeners: {
+			'focus-in': 'open',
+			'focus-out': 'close'
+		},
+		
+		open: function() {
+			this._open = true;
+			this.async(function(){
+				this.updateElementPosition(/**@type {Element}*/this.$.dialog);
+			});
+		},
+		
+		close: function() {
+			this._open = false;
+		},
+		
+		_buttonClicked: function() {
+			console.log('button clicked!');
+		},
+		
+		_computeDialogClasses: function (open) {
+			return (open ? 'open' : '');
+		}
+		
+	});
+	
+</script>

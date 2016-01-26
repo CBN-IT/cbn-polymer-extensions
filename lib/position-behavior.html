@@ -1,7 +1,8 @@
+<link rel="import" href="utils.html" />
+
 <script>
-	if (!window.Cbn) window.Cbn = {};
-	
 	(function(scope) {
+		var domUtils = scope.Utils.Dom;
 		
 		/**
 		 * Utility behavior to position an absolute/fixed element relative to another.
@@ -9,6 +10,7 @@
 		 * Inspired from jQuery UI's position plugin: http://api.jqueryui.com/position/.
 		 *
 		 * @type {Element}
+		 * @polymerBehavior
 		 */
 		scope.PositionBehavior = {
 			
@@ -190,17 +192,6 @@
 			 * @return {[Number,Number]} The accumulated coordinates of the parents, if found.
 			 */
 			_computeTranslatedCoordinates: function (target) {
-				function getParentNode(node) {
-					var parentNode = node.parentNode;
-					if (parentNode && window.ShadowRoot && parentNode instanceof ShadowRoot) {
-						return parentNode.host;
-					}
-					if (parentNode.nodeType == Node.DOCUMENT_NODE) {
-						return null;
-					}
-					return parentNode;
-				}
-				
 				var ua = navigator.userAgent;
 				// skip for IE / Edge (they don't change the coordinate system on fixed elements)
 				var isIE = /\b(Edge|MSIE|Trident)\b/i.test(ua);
@@ -208,7 +199,7 @@
 					return [0, 0];
 				}
 				
-				var parent = getParentNode(target);
+				var parent = domUtils.getShadowParentNode(target);
 				var coords = [0, 0];
 				while (parent) {
 					var computedStyle = window.getComputedStyle(parent);
@@ -219,7 +210,7 @@
 						coords[1] += parentRect.top;
 						break;
 					}
-					parent = getParentNode(parent);
+					parent = domUtils.getShadowParentNode(parent);
 				}
 				return coords;
 			},
