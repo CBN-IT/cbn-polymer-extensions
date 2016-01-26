@@ -402,7 +402,7 @@
 		function moveBoundingBox(boundingBox, newPosition, dir) {
 			var newPosition2 = [ newPosition[0], newPosition[1] ];
 			if (dir !== undefined) {
-				newPosition2 = [ boundingBox.left, boundingBox.right ];
+				newPosition2 = [ boundingBox.left, boundingBox.top ];
 				newPosition2[dir] = newPosition[dir];
 			}
 			return {
