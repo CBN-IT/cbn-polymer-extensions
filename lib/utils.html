@@ -46,6 +46,26 @@
 			},
 			
 			/**
+			 * Calls the user-provided function for each of the node's ancestors or until it returns truthy value.
+			 * 
+			 * The direction is top to bottom. Traverses shadow roots.
+			 * 
+			 * @param {Node} node The node to iterate.
+			 * @param {Function} callback The callback function to call.
+			 * @param {Boolean} [thisArg] The `this` to use for calling the function.
+			 * @return {*} The true-y value returned by the callback (or undefined if all ancestors were looped).
+			 */ 
+			forEachAncestor: function (node, callback, thisArg) {
+				var parent = node, res;
+				while (parent) {
+					res = callback.call((thisArg ? thisArg : null), parent);
+					if (res) return res;
+					parent = this.getShadowParentNode(parent);
+				}
+				return undefined;
+			},
+			
+			/**
 			 * Returns whether an element matches the specified selector.
 			 *
 			 * @param {Element} el The element to check.

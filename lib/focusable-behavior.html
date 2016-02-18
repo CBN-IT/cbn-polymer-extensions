@@ -7,7 +7,7 @@
 		/**
 		 * Whether to enable console logging.
 		 */
-		var debug = false;
+		var debug = true;
 		
 		
 		/**
@@ -173,7 +173,11 @@
 				if (this._focusableAncestorEl._boundFocusBlurHandler) {
 					this._focusableAncestorEl.removeEventListener('blur', 
 						/**@type {Function}*/this._focusableAncestorEl._boundFocusBlurHandler, true);
+					this._focusableAncestorEl.removeEventListener('focus',
+						/**@type {Function}*/this._focusableAncestorEl._boundFocusBlurHandler, true);
 					this._focusableAncestorEl.addEventListener('blur',
+						/**@type {Function}*/this._focusableAncestorEl._boundFocusBlurHandler, true);
+					this._focusableAncestorEl.addEventListener('focus',
 						/**@type {Function}*/this._focusableAncestorEl._boundFocusBlurHandler, true);
 				}
 				
@@ -224,7 +228,7 @@
 				if (event.detail && event.detail.sourceEvent)
 					return;
 				var target = Polymer.dom(event).rootTarget;
-				if (debug) console.log('focus', target.nodeName, this._refocusing);
+				if (debug) console.trace('focus', target.nodeName, this._refocusing);
 				
 				if (domUtils.deepContainsElement(/**@type {Element}*/this.focusableContainer, target)) {
 					// the target element was focused directly
@@ -247,10 +251,12 @@
 				var target = Polymer.dom(event).rootTarget;
 				if (debug) console.log('blur', target.nodeName, event.detail, (this._refocusing ? 'refocusing!' : ''));
 				
-				// ignore IronControlState's re-fired events
+				// ignore re-fired / artificial events
 				if (event.detail && event.detail.sourceEvent) {
-					event.stopPropagation();
-					event.stopImmediatePropagation();
+					if (!event.detail.dontStopMeNow) { // I'm having such a good time...
+						event.stopPropagation();
+						event.stopImmediatePropagation();
+					}
 					return;
 				}
 				
@@ -271,6 +277,18 @@
 				} else {
 					// the element was blurred
 					if (debug) console.log('blurred fo real');
+					// since we may have interrupted earlier blur events, we need to fire it for all target's ancestors 
+					// that may think they're focused
+					domUtils.forEachAncestor(this.focusTarget, function(ancestor) {
+						this.fire('blur', { sourceEvent: event, dontStopMeNow: true }, {
+							node: ancestor,
+							bubbles: false
+						});
+						// stop at the focusable ancestor
+						if (ancestor === this._focusableAncestorEl) return true; 
+					}, this);
+					
+					// finally, set the focused flag and notify the elements
 					this._changeFocusState(false);
 				}
 				this._refocus = false;
@@ -284,7 +302,7 @@
 			 */
 			_doRefocus: function() {
 				var focusTarget = this._refocusElement || this.focusTarget;
-				if (debug) console.log('doRefocus()', focusTarget);
+				if (debug) console.trace('doRefocus()', focusTarget);
 				this._refocusing = true;
 				
 				focusTarget.focus();
