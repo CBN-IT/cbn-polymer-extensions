@@ -48,7 +48,7 @@
 			/**
 			 * Calls the user-provided function for each of the node's ancestors or until it returns truthy value.
 			 * 
-			 * The direction is top to bottom. Traverses shadow roots.
+			 * The direction is bottom - top. Traverses shadow roots.
 			 * 
 			 * @param {Node} node The node to iterate.
 			 * @param {Function} callback The callback function to call.
@@ -56,13 +56,16 @@
 			 * @return {*} The true-y value returned by the callback (or undefined if all ancestors were looped).
 			 */ 
 			forEachAncestor: function (node, callback, thisArg) {
-				var parent = node, res;
+				var parent = node, res = undefined, stack = [];
 				while (parent) {
-					res = callback.call((thisArg ? thisArg : null), parent);
-					if (res) return res;
+					stack.splice(0, 0, parent);
 					parent = this.getShadowParentNode(parent);
 				}
-				return undefined;
+				stack.some(function(ancestor) {
+					res = callback.call((thisArg ? thisArg : null), ancestor);
+					return res;
+				});
+				return res;
 			},
 			
 			/**

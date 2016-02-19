@@ -7,7 +7,7 @@
 		/**
 		 * Whether to enable console logging.
 		 */
-		var debug = false;
+		var debug = true;
 		
 		
 		/**
@@ -249,7 +249,7 @@
 			 */
 			_blurHandler: function(event) {
 				var target = Polymer.dom(event).rootTarget;
-				if (debug) console.log('blur', target.nodeName, event.detail, (this._refocusing ? 'refocusing!' : ''));
+				if (debug) console.trace('blur', target.nodeName, event.detail, (this._refocusing ? 'refocusing!' : ''));
 				
 				// ignore re-fired / artificial events
 				if (event.detail && event.detail.sourceEvent) {
