@@ -1,0 +1,101 @@
+<link rel="import" href="../../../polymer/polymer.html">
+
+<link rel="import" href="../../lib/position-behavior.html">
+
+<dom-module id="test-position-client">
+	<style>
+		:host { display: inline-block; }
+		
+		#reference {
+			box-sizing: border-box;
+			padding: 10px;
+			
+			width: var(--test-pos-client-width, 200px);
+			height: var(--test-pos-client-height, 50px);
+			background: var(--test-pos-client-background, #444);
+			border: var(--test-pos-client-border, 1px solid #000);
+			
+			color: white;
+		}
+		
+		#dialog {
+			display: none;
+			position: fixed;
+			z-index: 9999;
+			box-sizing: border-box;
+			padding: 10px;
+			
+			width: var(--test-pos-dialog-width, 400px);
+			height: var(--test-pos-dialog-height, 300px);
+			background: var(--test-pos-dialog-background, #700);
+			border: var(--test-pos-dialog-border, 1px solid #400);
+			
+			font-weight: bold;
+			color: white;
+		}
+		
+		#dialog.open {
+			display: block;
+		}
+		
+	</style>
+	
+	<template>
+		<div id="reference">{{ text }}</div>
+		
+		<div id="dialog" class$="{{_computeDialogClasses(_open)}}">{{ dialogText }}</div>
+		
+	</template>
+</dom-module>
+
+<script>
+	
+	Polymer({
+		is: 'test-position-client',
+		
+		properties: {
+			
+			text: {
+				type: String,
+				value: 'reference'
+			},
+			
+			dialogText: {
+				type: String,
+				value: 'dialog'
+			},
+			
+			_open: {
+				type: Boolean,
+				value: false
+			}
+			
+		},
+		
+		behaviors: [
+			Cbn.PositionBehavior
+		],
+		
+		listeners: {
+			'mouseover': 'open',
+			'mouseleave': 'close'
+		},
+		
+		open: function() {
+			this._open = true;
+			this.async(function(){
+				this.updateElementPosition(this.$.dialog);
+			});
+		},
+		
+		close: function() {
+			this._open = false;
+		},
+		
+		_computeDialogClasses: function (open) {
+			return (open ? 'open' : '');
+		}
+		
+	});
+	
+</script>

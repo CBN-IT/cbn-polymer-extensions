@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>Position</title>
+	
+	<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+	
+	<link rel="import" href="mock/position-client.html">
+	
+</head>
+<body>
+
+<div  style="width: 800px; margin: 50px auto;">
+	<h1>Position behavior demo</h1>
+	
+	<template id="tpl" is="dom-bind">
+			
+		<p>
+			<test-position-client text="left top, no collision" position="left top, left bottom" position-collision-mode="none none"></test-position-client>
+		</p>
+		<p>
+			<test-position-client text="right top, flip" position="right top" position-collision-mode="flip flip"></test-position-client>
+		</p>
+		
+		<p>
+			<test-position-client text="center, bottom left" position=", bottom left" position-collision-mode="flipfit flipfit"></test-position-client>
+		</p>
+		<p>
+			<test-position-client text="bottom left" position="bottom left" position-collision-mode="flipfit flipfit"></test-position-client>
+		</p>
+		<p>
+			<test-position-client text="bottom" position="center bottom"></test-position-client>
+		</p>
+		
+		<div style="transform: translate3d(0px, -50px, 0px);">
+			<div style="transform: translate3d(50px, 100px, 0px);">
+				<test-position-client text="fix local coordinate system" 
+									  position="top right, top left"></test-position-client>
+				<test-position-client text="local coordinate system, no fix" position-fix-transform="false"
+									  position="top right, top left"></test-position-client>
+			</div>
+		</div>
+		
+	</template>
+</div>
+	
+<script>
+	var tpl = document.querySelector('template[is=dom-bind]');
+	
+	tpl.addEventListener('dom-change', function(){
+		// ?? 
+	});
+	
+</script>
+
+</body>
+</html>

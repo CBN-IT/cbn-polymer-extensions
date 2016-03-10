@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>Position</title>
+	
+	<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+	
+	<link rel="import" href="mock/focusable-client.html">
+	<link rel="import" href="mock/focusable-client-children.html">
+	<link rel="import" href="mock/focusable-nested-client.html">
+	
+</head>
+<body>
+
+<div  style="width: 800px; margin: 50px auto;">
+	<h1>Position behavior demo</h1>
+	
+	<template id="tpl" is="dom-bind">
+		
+		<p>Hello</p>
+		
+		<p>
+			<test-focusable-client position="right"></test-focusable-client>
+		</p>
+		
+		<p>
+			<test-focusable-client-children position="right"></test-focusable-client-children>
+		</p>
+		
+		<p>
+			<test-focusable-nested-client></test-focusable-nested-client>
+		</p>
+		
+		<p>Input: <input type="text" value="blur target" /></p>
+		<p>Button: <paper-button>Click me</paper-button></p>
+		<br />
+		
+	</template>
+</div>
+	
+<script>
+	var tpl = document.querySelector('template[is=dom-bind]');
+	
+	tpl.addEventListener('dom-change', function(){
+	});
+	
+</script>
+
+</body>
+</html>

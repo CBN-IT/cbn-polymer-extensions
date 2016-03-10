@@ -1,0 +1,91 @@
+<script>
+	(function (scope) {
+		if (!window.Cbn) window.Cbn = {};
+		scope = window.Cbn.Utils = {};
+		
+		/**
+		 * Additional Polymer-related DOM manipulation functions.
+		 */
+		scope.Dom = {
+			
+			/**
+			 * Returns the parent node of the specified node, traversing Shadow DOM.
+			 *
+			 * @param {Node} node The node.
+			 * @return {Node} The node's parent element.
+			 */
+			getShadowParentNode: function (node) {
+				var parentNode = node.parentNode;
+				if (parentNode && window.ShadowRoot && parentNode instanceof ShadowRoot) {
+					return parentNode.host;
+				}
+				if (parentNode.nodeType == Node.DOCUMENT_NODE) {
+					return null;
+				}
+				return parentNode;
+			},
+			
+			/**
+			 * Returns whether a node contains (or is) the specified element.
+			 *
+			 * Traverses shadow roots deeply.
+			 *
+			 * @param {Node} node The node that needs to contain the element.
+			 * @param {Node} element The element to check.
+			 * @return {Boolean} True if the element is contained.
+			 */
+			deepContainsElement: function (node, element) {
+				var parent = element;
+				while (parent) {
+					if (parent == node) {
+						return true;
+					}
+					parent = this.getShadowParentNode(parent);
+				}
+				return false;
+			},
+			
+			/**
+			 * Calls the user-provided function for each of the node's ancestors or until it returns truthy value.
+			 * 
+			 * The direction is bottom - top. Traverses shadow roots.
+			 * 
+			 * @param {Node} node The node to iterate.
+			 * @param {Function} callback The callback function to call.
+			 * @param {Boolean} [thisArg] The `this` to use for calling the function.
+			 * @return {*} The true-y value returned by the callback (or undefined if all ancestors were looped).
+			 */ 
+			forEachAncestor: function (node, callback, thisArg) {
+				var parent = node, res = undefined, stack = [];
+				while (parent) {
+					stack.splice(0, 0, parent);
+					parent = this.getShadowParentNode(parent);
+				}
+				stack.some(function(ancestor) {
+					res = callback.call((thisArg ? thisArg : null), ancestor);
+					return res;
+				});
+				return res;
+			},
+			
+			/**
+			 * Returns whether an element matches the specified selector.
+			 *
+			 * @param {Element} el The element to check.
+			 * @param {String} selector The selector to match.
+			 * @returns {Boolean}
+			 */
+			selectorMatches: function (el, selector) {
+				var p = Element.prototype;
+				//noinspection JSUnresolvedVariable
+				var f = p.matches || p.webkitMatchesSelector || p.mozMatchesSelector || p.msMatchesSelector || function (s) {
+						return [].indexOf.call(document.querySelectorAll(s), this) !== -1;
+					};
+				return f.call(el, selector);
+			}
+			
+		}
+		
+	})();
+
+</script>
