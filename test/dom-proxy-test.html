@@ -13,6 +13,7 @@
 	<!-- Elements to be tested -->
 	<link rel="import" href="../lib/dom-proxy.html" />
 	<link rel="import" href="../demo/mock/dom-proxy-container.html" />
+	<link rel="import" href="../demo/mock/dom-proxy-provider.html" />
 	
 </head>
 <body>
@@ -39,13 +40,11 @@
 	</template>
 </test-fixture>
 
-<test-fixture id="containerElementCustom">
+<test-fixture id="externalElement">
 	<template is="dom-template">
 		<div>
-			<template id="sourceTemplate2">
-				<div id="customInstance">This is a custom template instance!</div>
-			</template>
-			<dom-proxy-container ref="#sourceTemplate2" parent-scope="document"></dom-proxy-container>
+			<dom-proxy-provider template-ref="{{refTpl}}" text="test"></dom-proxy-provider>
+			<dom-proxy-container ref="[[refTpl]]"></dom-proxy-container>
 		</div>
 	</template>
 </test-fixture>
@@ -71,12 +70,14 @@
 			assert.ok(Polymer.dom(t.root).querySelector('#defaultInstance'), 'Default instance stamped');
 		});
 		
-		test('container element with custom (external) template', function() {
-			container = fixture('containerElementCustom');
+		test('container element with external template', function() {
+			container = fixture('externalElement');
 			t = Polymer.dom(container).querySelector('dom-proxy-container');
 			t.render();
 			
-			assert.ok(Polymer.dom(t.root).querySelector('#customInstance'), 'Default instance stamped');
+			var instance = Polymer.dom(t.root).querySelector('#customInstance');
+			assert.ok(instance, 'External instance stamped');
+			assert.equal(instance.textContent, "[text:test]", 'External properties & methods used');
 		});
 	});
 

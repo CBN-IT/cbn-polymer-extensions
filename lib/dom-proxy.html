@@ -202,6 +202,20 @@
 		},
 		
 		/**
+		 * Returns the root data host for the templatized element.
+		 * 
+		 * This will make the template instance's host element provide its own computed properties / event listeners.
+		 */
+		_getRootDataHost: function() {
+			var templatizedDom = this._templatized ? Polymer.dom(this._templatized) : null;
+			if (templatizedDom && templatizedDom.getOwnerRoot() && templatizedDom.getOwnerRoot().host) {
+				return templatizedDom.getOwnerRoot().host;
+			}
+			// else, use the default
+			return Polymer.Templatizer._getRootDataHost.apply(this, arguments);
+		},
+		
+		/**
 		 * Templatizer extension point to notify the proxied instance that a host property changed.
 		 *
 		 * @param {String} prop The property that changed.

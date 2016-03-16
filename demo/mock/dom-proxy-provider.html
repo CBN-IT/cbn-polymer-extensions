@@ -1,0 +1,41 @@
+<link rel="import" href="../../../polymer/polymer.html">
+
+<dom-module id="dom-proxy-provider">
+	<template>
+		<template id="sourceTemplate">
+			<p id="customInstance">[[_computeText(text)]]</p>
+		</template>
+	</template>
+</dom-module>
+
+<script>
+	//noinspection JSUnusedGlobalSymbols
+	Polymer({
+		is: 'dom-proxy-provider',
+		
+		properties: {
+			
+			templateRef: {
+				type: Object,
+				notify: true,
+				readOnly: true
+			},
+			
+			text: {
+				type: String,
+				value: ''
+			}
+			
+		},
+		
+		ready: function() {
+			//noinspection JSUnresolvedVariable,JSUnresolvedFunction
+			this._setTemplateRef(this.$.sourceTemplate);
+		},
+		
+		_computeText: function(text) {
+			return '[text:' + text + ']'
+		}
+	});
+	
+</script>
