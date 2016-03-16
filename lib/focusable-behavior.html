@@ -189,11 +189,13 @@
 			 * Callback when an element instance is attached to the DOM. Used to clean up event handlers.
 			 */
 			detached: function() {
-				this._focusableAncestorEl.removeEventListener('focus',
-					/**@type {Function}*/this._boundFocusedHandler, true);
-				this._focusableAncestorEl.removeEventListener('blur',
-					/**@type {Function}*/this._boundBlurHandler, true);
-				this.unlisten(this._focusableAncestorEl, 'mousedown', '_detectRefocus');
+				if (this._focusableAncestorEl) {
+					this._focusableAncestorEl.removeEventListener('focus',
+						/**@type {Function}*/this._boundFocusedHandler, true);
+					this._focusableAncestorEl.removeEventListener('blur',
+						/**@type {Function}*/this._boundBlurHandler, true);
+					this.unlisten(this._focusableAncestorEl, 'mousedown', '_detectRefocus');
+				}
 			},
 			
 			/**

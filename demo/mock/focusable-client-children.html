@@ -42,12 +42,8 @@
 	
 	<template>
 		<div id="container" tabindex="-1">
-			<paper-input id="input" type="text" floating-label label="{{ text }}"></paper-input>
-			<paper-input id="input" type="text" floating-label label="{{ text2 }}"></paper-input>
-			<!--<label>-->
-				<!--{{ text }}-->
-				<!--<input id="input" type="text" />-->
-			<!--</label>-->
+			<input is="iron-input" id="input1" type="text" floating-label label="{{ text }}" />
+			<input is="iron-input" id="input2" type="text" floating-label label="{{ text2 }}" />
 		</div>
 		
 		<div id="dialog" class$="{{_computeDialogClasses(_open)}}">
