@@ -1,0 +1,57 @@
+<link rel="import" href="../../../polymer/polymer.html">
+
+<link rel="import" href="../../lib/dom-proxy.html">
+
+<dom-module id="dom-proxy-container">
+	<template>
+		<template id="defaultTemplate">
+			<p id="defaultInstance">This is the default instance</p>
+		</template>
+		
+		<div id="container">
+			<template id="proxy" is="cbn-dom-proxy" ref="[[ref]]" parent-scope="[[parentScope]]"></template>
+		</div>
+	</template>
+</dom-module>
+
+<script>
+	Polymer({
+		is: 'dom-proxy-container',
+		
+		properties: {
+			
+			ref: {
+				type: Object,
+				value: null
+			},
+			
+			parentScope: {
+				type: Object,
+				value: null
+			}
+			
+		},
+		
+		ready: function() {
+			if (!this.ref) {
+				//noinspection JSUnresolvedVariable
+				this.ref = this.$.defaultTemplate;
+			}
+		},
+		
+		attached: function () {
+			if (!this.ref) {
+				var template = Polymer.dom(this).querySelector('template');
+				if (template) {
+					this.ref = template;
+				}
+			}
+		},
+		
+		render: function() {
+			this.$.proxy.render();
+		}
+		
+	});
+	
+</script>

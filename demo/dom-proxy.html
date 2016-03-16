@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>Dom-Proxy</title>
+	
+	<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+	
+	<link rel="import" href="../lib/dom-proxy.html">
+	<link rel="import" href="mock/dom-proxy-container.html">
+	
+</head>
+<body>
+
+<div  style="width: 800px; margin: 50px auto;">
+	<h1>Dom-Proxy demo</h1>
+	
+	<template id="tpl" is="dom-bind">
+		
+		<template id="target">
+			<p>Stamped!</p>
+		</template>
+		
+		<div>
+			Stamp target:
+			<template is="cbn-dom-proxy" ref="#target" parent-scope="document"></template>
+		</div>
+		
+		<div>
+			Containing element:
+			<dom-proxy-container>
+				<template>
+					Stamped inside container!
+				</template>
+			</dom-proxy-container>
+		</div>
+		
+	</template>
+</div>
+
+<script>
+	var tpl = document.querySelector('template[is=dom-bind]');
+	
+	tpl.addEventListener('dom-change', function() {
+	});
+	
+</script>
+
+</body>
+</html>

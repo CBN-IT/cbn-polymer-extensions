@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+	
+	<script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+	<script src="../../web-component-tester/browser.js"></script>
+	
+	<script src="../../test-fixture/test-fixture-mocha.js"></script>
+	<link rel="import" href="../../test-fixture/test-fixture.html" />
+	
+	<!-- Elements to be tested -->
+	<link rel="import" href="../lib/dom-proxy.html" />
+	<link rel="import" href="../demo/mock/dom-proxy-container.html" />
+	
+</head>
+<body>
+
+<test-fixture id="flatScope">
+	<template is="dom-template">
+		<div>
+			<template id="sourceTemplate">
+				<div id="thisIsIt">This is it!</div>
+				<p id="anotherOne">Another Paragraph</p>
+			</template>
+			<div id="target">
+				<template is="cbn-dom-proxy" ref="#sourceTemplate" parent-scope="document"></template>
+			</div>
+		</div>
+	</template>
+</test-fixture>
+
+<test-fixture id="containerElementDefault">
+	<template is="dom-template">
+		<div>
+			<dom-proxy-container></dom-proxy-container>
+		</div>
+	</template>
+</test-fixture>
+
+<test-fixture id="containerElementCustom">
+	<template is="dom-template">
+		<div>
+			<template id="sourceTemplate2">
+				<div id="customInstance">This is a custom template instance!</div>
+			</template>
+			<dom-proxy-container ref="#sourceTemplate2" parent-scope="document"></dom-proxy-container>
+		</div>
+	</template>
+</test-fixture>
+
+<script>
+	
+	suite('cbn-dom-proxy', function () {
+		var t, container;
+		
+		test('flat scope', function () {
+			container = fixture('flatScope');
+			t = Polymer.dom(container).querySelector('template[is=cbn-dom-proxy]');
+			t.render();
+			
+			assert.ok(document.querySelector('div#thisIsIt') && document.querySelector('p#anotherOne'), 
+				'Elements stamped');
+		});
+		
+		test('container element with default template', function() {
+			container = fixture('containerElementDefault');
+			t = Polymer.dom(container).querySelector('dom-proxy-container');
+			t.render();
+			assert.ok(Polymer.dom(t.root).querySelector('#defaultInstance'), 'Default instance stamped');
+		});
+		
+		test('container element with custom (external) template', function() {
+			container = fixture('containerElementCustom');
+			t = Polymer.dom(container).querySelector('dom-proxy-container');
+			t.render();
+			
+			assert.ok(Polymer.dom(t.root).querySelector('#customInstance'), 'Default instance stamped');
+		});
+	});
+
+
+</script>
+
+</body>
+</html>

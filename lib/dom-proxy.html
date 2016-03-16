@@ -1,0 +1,229 @@
+<link rel="import" href="../../polymer/polymer.html">
+
+<script>
+	/**
+	 * Acts as a proxy template which can receive a template element via the `ref` property and stamps it as sibling 
+	 * of the current element.
+	 * 
+	 * Example:
+	 * ```
+	 *     <template id="myTemplate">
+	 *         <p>This is stamped: [[hello]]</p>
+	 *     </template>
+	 *     <- ... ->
+	 *     <template is="cbn-dom-proxy" ref="#myTemplate"></template>
+	 *     <- Template will be stamped here ->
+	 * ```
+	 */
+	Polymer({
+		is: 'cbn-dom-proxy',
+		extends: 'template',
+		
+		properties: {
+			
+			/**
+			 * A reference to the proxied template to stamp.
+			 * 
+			 * Can either be a valid selector (searched inside the `parentScope` node) DOM element reference.
+			 */
+			ref: {
+				type: Object,
+				value: null,
+				observer: '_queueRender'
+			},
+			
+			/**
+			 * The element to search for the reference template.
+			 * 
+			 * If null, the parent host element is used instead.
+			 * Specify 'document' to use the document as root scope.
+			 */
+			parentScope: {
+				type: Object,
+				value: null,
+				observer: '_queueRender'
+			}
+			
+		},
+		
+		behaviors: [
+			Polymer.Templatizer
+		],
+		
+		/**
+		 * Contains the currently stamped template object.
+		 */
+		_stampedTemplate: null,
+		
+		/**
+		 * The stamped instance.
+		 */
+		_instance: null,
+		
+		/**
+		 * Computes the reference template.
+		 * 
+		 * @return {Node|null} The reference template to stamp / null if not found.
+		 */
+		get _referenceTemplate() {
+			if (!this.ref)
+				return null;
+			if (this.ref instanceof Element) {
+				return this.ref;
+			}
+			var parentScope = ( Polymer.dom(this).getOwnerRoot() && Polymer.dom(this).getOwnerRoot().host );
+			if (this.parentScope) {
+				if (typeof this.parentScope == 'string') {
+					if (this.parentScope === 'document') {
+						parentScope = document;
+					} else {
+						parentScope = null;
+					}
+				} else if (this.parentScope instanceof Node) {
+					parentScope = this.parentScope;
+				} else {
+					parentScope = null;
+				}
+			}
+			if (!parentScope) {
+				console.error('`cbn-dom-proxy`: could not determine the parent scope element!', this.parentScope);
+				return null;
+			}
+			
+			var ref = parentScope.querySelector(this.ref);
+			if (!ref) { // try to search it inside the current element's parent, instead
+				ref = this.parentNode.querySelector(this.ref);
+			}
+			if (!ref) {
+				console.error('`cbn-dom-proxy`: unable to find the proxied template', this.ref);
+			}
+			return ref;
+		},
+		
+		/**
+		 * Fired whenever this template is re-stamped (including initially).
+		 *
+		 * @event dom-change
+		 */
+		
+		/**
+		 * Queues the template for rendering.
+		 */
+		_queueRender: function () {
+			this._debounceTemplate(this._render);
+		},
+		
+		/**
+		 * When the element is attached, try to stamp it.
+		 */
+		attached: function () {
+			if (this.ctor) {
+				this.async(this._queueRender);
+			}
+		},
+		
+		/**
+		 * After the element is detached, remove the stamped nodes.
+		 */
+		detached: function () {
+			if (!this.parentNode || (this.parentNode.nodeType == Node.DOCUMENT_FRAGMENT_NODE &&
+					(!Polymer.Settings.hasShadow || !(this.parentNode instanceof ShadowRoot)))) {
+				this._teardownInstance();
+			}
+		},
+		
+		/**
+		 * Forces the element to render its content.
+		 */
+		render: function () {
+			this._render();
+			this._flushTemplates();
+		},
+		
+		/**
+		 * Stamps the proxied template.
+		 */
+		_render: function () {
+			var ref = this._referenceTemplate;
+			// check if the proxied template has changed
+			if (!this._stampedTemplate || this._stampedTemplate !== ref) {
+				this._teardownInstance();
+				if (!ref) return;
+				this.templatize(ref);
+				this._stampedTemplate = ref;
+			}
+			
+			this._ensureInstance();
+			this.fire('dom-change');
+		},
+		
+		/**
+		 * Ensures that the proxied template elements are stamped.
+		 */
+		_ensureInstance: function () {
+			var parentNode = Polymer.dom(this).parentNode;
+			// Guard against element being detached while render was queued
+			if (parentNode) {
+				var parent = Polymer.dom(parentNode);
+				if (!this._instance) {
+					this._instance = this.stamp();
+					var root = this._instance.root;
+					parent.insertBefore(root, this);
+				} else {
+					var c$ = this._instance._children;
+					if (c$ && c$.length) {
+						// Detect case where dom-if was re-attached in new position
+						var lastChild = Polymer.dom(this).previousSibling;
+						if (lastChild !== c$[c$.length - 1]) {
+							for (var i = 0, n; (i < c$.length) && (n = c$[i]); i++) {
+								parent.insertBefore(n, this);
+							}
+						}
+					}
+				}
+			}
+		},
+		
+		/**
+		 * Removes all stamped nodes from DOM.
+		 */
+		_teardownInstance: function () {
+			if (this._instance) {
+				var c$ = this._instance._children;
+				if (c$ && c$.length) {
+					// use first child parent, for case when the template may have been detached
+					var parent = Polymer.dom(Polymer.dom(c$[0]).parentNode);
+					for (var i = 0, n; (i < c$.length) && (n = c$[i]); i++) {
+						parent.removeChild(n);
+					}
+				}
+				this._instance = null;
+			}
+		},
+		
+		/**
+		 * Templatizer extension point to notify the proxied instance that a host property changed.
+		 *
+		 * @param {String} prop The property that changed.
+		 * @param {*} value The new value.
+		 */
+		_forwardParentProp: function (prop, value) {
+			if (this._instance) {
+				this._instance[prop] = value;
+			}
+		},
+		
+		/**
+		 * Templatizer extension point to notify the proxied instance that a host path changed.
+		 * 
+		 * @param {String} path The changed path.
+		 * @param {*} value The new value.
+		 */
+		_forwardParentPath: function (path, value) {
+			if (this._instance) {
+				this._instance._notifyPath(path, value, true);
+			}
+		}
+		
+	});
+</script>
