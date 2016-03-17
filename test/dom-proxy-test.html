@@ -67,7 +67,9 @@
 			container = fixture('containerElementDefault');
 			t = Polymer.dom(container).querySelector('dom-proxy-container');
 			t.render();
-			assert.ok(Polymer.dom(t.root).querySelector('#defaultInstance'), 'Default instance stamped');
+			
+			var instance = Polymer.dom(t.root).querySelector('#defaultInstance');
+			assert.ok(instance, 'Default instance stamped');
 		});
 		
 		test('container element with external template', function() {
@@ -78,6 +80,19 @@
 			var instance = Polymer.dom(t.root).querySelector('#customInstance');
 			assert.ok(instance, 'External instance stamped');
 			assert.equal(instance.textContent, "[text:test]", 'External properties & methods used');
+		});
+		
+		test('instance property bindings', function() {
+			container = fixture('containerElementDefault');
+			t = Polymer.dom(container).querySelector('dom-proxy-container');
+			t.render();
+			var instance = Polymer.dom(t.root).querySelector('#defaultInstance');
+			
+			t.set('myObj', { test: "First" });
+			assert.equal(instance.querySelector('span').textContent, 'First', 'instance property set');
+			
+			t.set('myObj.test', 'Test1234');
+			assert.equal(instance.querySelector('span').textContent, 'Test1234', 'instance path value set');
 		});
 	});
 

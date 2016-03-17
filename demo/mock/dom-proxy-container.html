@@ -5,11 +5,15 @@
 <dom-module id="dom-proxy-container">
 	<template>
 		<template id="defaultTemplate">
-			<p id="defaultInstance">This is the default instance</p>
+			<p id="defaultInstance">This is the default instance
+			<span id="myObjTest">[[ myObj.test ]]</span></p>
+			
+			<input is="iron-input" name="twoWayInput" bind-value="{{twoWay}}" />
 		</template>
 		
 		<div id="container">
-			<template id="proxy" is="cbn-dom-proxy" ref="[[ref]]" parent-scope="[[parentScope]]"></template>
+			<template id="proxy" is="cbn-dom-proxy" ref="[[ref]]" instance-props='[ "myObj" ]'
+					  parent-scope="[[parentScope]]"></template>
 		</div>
 	</template>
 </dom-module>
@@ -28,6 +32,18 @@
 			parentScope: {
 				type: Object,
 				value: null
+			},
+			
+			myObj: {
+				type: Object,
+				value: function() { return {
+					test: 'test'
+				}; }
+			},
+			
+			twoWay: {
+				type: String,
+				value: ''
 			}
 			
 		},
