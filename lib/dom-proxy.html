@@ -19,6 +19,40 @@
 		 *     <template is="cbn-dom-proxy" ref="#myTemplate"></template>
 		 *     <- Template will be stamped here ->
 		 * ```
+		 * 
+		 * You can also specify custom instance properties to bind from the host element using the `instanceProps` 
+		 * attribute, which works even inside `dom-repeat`:
+		 * ```
+		 * <dom-module id="client-element"><template>
+		 *     <template id="clientTemplate">
+		 *         <p>Parent properties accessible: {{ test }}</p>
+		 *         <p>Computed methods / event handlers from the parent element: [[_computeText(test)]]</p>
+		 *         <p><paper-button on-tap="_myTapHandler">Click!</paper-button></p>
+		 *         <p>Instance property: {{ item.obj.value }}</p>
+		 *     </template>
+		 * </template></dom-module>
+		 * ```
+		 * ```
+		 * Polymer({
+		 *     is: 'client-element',
+		 *     properties: { test: { type: String, value: "TEST" } },
+		 *     _computeText: function(test) { return "[" + test + "]" },
+		 *     _myTapHandler: function(event) { do stuff... }
+		 * })
+		 * ```
+		 * ```
+		 * <dom-module id="host-element"><template>
+		 *     <template is="dom-repeat" items=[[items]] as="item">
+		 *         <template is="cbn-dom-proxy" instance-props='[ 'index', 'item' ]'></template>
+		 *     </template>
+		 * </template></dom-module>
+		 * ```
+		 * ```
+		 * Polymer({
+		 *     is: 'client-element',
+		 *     properties: { items: { type: Array }
+		 * })
+		 * ```
 		 */
 		Polymer({
 			is: 'cbn-dom-proxy',
@@ -39,6 +73,8 @@
 				
 				/**
 				 * A list of instance-dependent properties that the client will supply (see Templatizer's `_instanceProps`).
+				 * Those properties will be linked to this instance's `dataHost` counterparts so that the data bindings 
+				 * will work as intended.
 				 * 
 				 * Must be set before the template is rendered!
 				 */
@@ -60,9 +96,13 @@
 					observer: '_queueRender'
 				},
 				
+				/**
+				 * Binds the custom instance property effector to the current proxy instance.
+				 */
 				_boundCustomPropEffector: {
 					type: Function,
 					value: function() {
+						//noinspection JSUnresolvedVariable
 						return this._customPropEffector.bind(this);
 					}
 				}
@@ -173,6 +213,8 @@
 					this._teardownInstance();
 					if (!ref) return;
 					this.templatize(ref);
+					if (!ref._proxyInstances)
+						ref._proxyInstances = [];
 					this._stampedTemplate = ref;
 				}
 				
@@ -198,6 +240,10 @@
 						}
 						
 						this._instance = this.stamp(model);
+						if (this._templatized._proxyInstances) {
+							this._templatized._proxyInstances.push(this._instance);
+						}
+						
 						var root = this._instance.root;
 						parent.insertBefore(root, this);
 					} else {
@@ -234,6 +280,12 @@
 							Cbn.CustomEffects.removeCustomEffect.call(this.dataHost, prop, this._boundCustomPropEffector);
 						}, this);
 					}
+					if (this._templatized._proxyInstances) {
+						var idx = this._templatized._proxyInstances.indexOf(this._instance);
+						if (idx > -1) {
+							this._templatized._proxyInstances.splice(idx, 1);
+						}
+					}
 					this._instance = null;
 				}
 			},
@@ -250,9 +302,17 @@
 				}
 			},
 			
+			/**
+			 * A custom property effect function that will forward any `dataHost` property changes to the
+			 * proxied instance.
+			 */
 			_customPropEffector: function(path, value) {
-				if (debug) console.trace(path, value);
-				this._instance._notifyPath(path, value);
+				if (debug) console.trace('customPropEffect', path, value);
+				if (path.indexOf('.') != -1) {
+					this._instance._notifyPath(path, value);
+				} else {
+					this._instance.set(path, value);
+				}
 			},
 			
 			/**
@@ -276,9 +336,11 @@
 			 * @param {*} value The new value.
 			 */
 			_forwardParentProp: function (prop, value) {
-				if (debug) console.trace('pp', prop, value);
-				if (this._instance) {
-					this._instance[prop] = value;
+				if (debug) console.trace('forwardParentProp', prop, value);
+				if (!this._templatized || !this._templatized._proxyInstances) return;
+				var i$ = this._templatized._proxyInstances;
+				for (var i = 0, inst; (i < i$.length) && (inst = i$[i]); i++) {
+					inst.__setProperty(prop, value, true);
 				}
 			},
 			
@@ -289,9 +351,13 @@
 			 * @param {*} value The new value.
 			 */
 			_forwardParentPath: function (path, value) {
-				if (debug) console.trace('ppath', path, value);
-				if (this._instance) {
-					this._instance._notifyPath(path, value, true);
+				if (debug) console.trace('forwardParentPath', path, value);
+				if (!this._templatized || !this._templatized._proxyInstances) return;
+				var i$ = this._templatized._proxyInstances;
+				for (var i = 0, inst; (i < i$.length) && (inst = i$[i]); i++) {
+					if (!inst.isPlaceholder) {
+						inst._notifyPath(path, value, true);
+					}
 				}
 			}
 			
