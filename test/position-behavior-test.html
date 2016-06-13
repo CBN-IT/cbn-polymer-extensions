@@ -28,7 +28,7 @@
 <script>
 	
 	suite('box positioning routines', function () {
-		var utils = Cbn.PositionBehaviorUtils;
+		var utils;
 		
 		chai.config.truncateThreshold = 0;
 		
@@ -37,6 +37,10 @@
 				left: left, top: top, width: width, height: height
 			};
 		}
+
+		suiteSetup(function() {
+			utils = Cbn.PositionBehaviorUtils;
+		});
 		
 		test('position parsing', function () {
 			// full position strings

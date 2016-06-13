@@ -4,9 +4,9 @@
   "private": true,
   "main": "cbn-polymer-extensions.html",
   "dependencies": {
-    "polymer": "Polymer/polymer#1.3.1",
-    "paper-button": "PolymerElements/paper-button#1.0.11",
-    "paper-input": "PolymerElements/paper-input#1.1.9",
+    "polymer": "Polymer/polymer#1.5.0",
+    "paper-button": "PolymerElements/paper-button#1.0.12",
+    "paper-input": "PolymerElements/paper-input#1.1.11",
     "polymer-reflection": "niflostancu/polymer-reflection#master"
   },
   "devDependencies": {
