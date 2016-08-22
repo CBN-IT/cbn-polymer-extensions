@@ -167,13 +167,15 @@
 				var targetBounds = target.getBoundingClientRect();
 				if (!targetBounds.width || !targetBounds.height) {
 					if (!options.callbacks || !options.callbacks.updateDimensions)
-						console.warn('`PositionBehavior#computeElementPosition`: ',
-							'invalid target element dimensions! (is the element visible?)');
+						if (!(target instanceof SVGElement))
+							console.warn('`PositionBehavior#computeElementPosition`: ',
+								'invalid target element dimensions! (is the element visible?)');
 				}
 				var refBounds = ref.getBoundingClientRect();
 				if (!refBounds.width || !refBounds.height) {
-					console.warn('`PositionBehavior#computeElementPosition`: ',
-						'invalid reference element dimensions! (is it visible?)');
+					if (!(ref instanceof SVGElement))
+						console.warn('`PositionBehavior#computeElementPosition`: ',
+							'invalid reference element dimensions! (is it visible?)');
 				}
 				
 				var viewport = this._getViewportBoundingBox(options.viewport, options.viewportMargin);
