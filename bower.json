@@ -4,7 +4,7 @@
   "private": true,
   "main": "cbn-polymer-extensions.html",
   "dependencies": {
-    "polymer": "Polymer/polymer#^1.5.0",
+    "polymer": "Polymer/polymer#1.6.1",
     "polymer-reflection": "CBN-IT/polymer-reflection#~1.1.0"
   },
   "devDependencies": {
